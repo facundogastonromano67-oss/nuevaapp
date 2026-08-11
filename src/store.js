@@ -2,12 +2,12 @@ import { attributes, combatSkills } from './data.js';
 import { buildNutritionWeek, buildTrainingPlan, calculateNutritionTargets, generateMissions } from './engines.js';
 
 const KEY = 'facu-owner-v1';
-const VERSION = 2;
+const VERSION = 3;
 const defaultAnswers = {
   sex: 'male', activity: 'light', goal: 'performance', routineType: 'full-body',
   trainingDays: ['Lunes', 'Miércoles', 'Viernes'], weeklyFrequency: '3', duration: '50',
   equipment: 'full', experience: 'novice', mealCount: '4', dietStyle: 'simple',
-  proteins: ['Pollo', 'Huevos'], carbs: ['Arroz', 'Avena'], produce: ['Tomate', 'Zanahoria'],
+  proteins: ['Pollo', 'Huevos'], carbs: ['Arroz', 'Avena'], produce: ['Tomate', 'Zanahoria'], intellect: 'logic',
 };
 
 const skillSeed = () => Object.entries(attributes).flatMap(([attr, names]) => names.map((name, index) => ({
@@ -27,7 +27,7 @@ export const initialState = () => {
   const nutritionWeek = buildNutritionWeek(targets, defaultAnswers);
   const state = {
     version: VERSION,
-    assessmentVersion: 2,
+    assessmentVersion: 3,
     onboarded: false,
     profile,
     onboardingAnswers: {},
@@ -86,6 +86,10 @@ export function migrateState(saved) {
     merged.habits = fresh.habits;
     merged.onboarded = false;
     merged.assessmentVersion = 2;
+  }
+  if ((Number(saved.assessmentVersion) || 0) < 3) {
+    merged.onboarded = false;
+    merged.assessmentVersion = 3;
   }
   if (!Array.isArray(merged.training.weeklyPlan) || merged.training.weeklyPlan.length !== 7) merged.training.weeklyPlan = fresh.training.weeklyPlan;
   if (!Array.isArray(merged.training.history)) merged.training.history = [];

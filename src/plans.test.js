@@ -1,12 +1,33 @@
 import { describe, expect, it } from 'vitest';
 import { assessmentQuestions } from './assessment.js';
-import { buildNutritionWeek, buildTrainingPlan, calculateFoodNutrition, calculateMealNutrition, calculateNutritionTargets, createWorkoutExercise, exerciseRestSeconds } from './engines.js';
+import { buildIntellectAssessment, buildNutritionWeek, buildTrainingPlan, calculateFoodNutrition, calculateMealNutrition, calculateNutritionTargets, createWorkoutExercise, exerciseRestSeconds, scoreIntellectAssessment } from './engines.js';
 import { exerciseCatalog, foodCatalog, habitCatalog } from './catalogs.js';
+import { intellectRoutes } from './data.js';
 
 describe('evaluación guiada', () => {
   it('contiene exactamente 30 preguntas con opciones', () => {
     expect(assessmentQuestions).toHaveLength(30);
     expect(assessmentQuestions.every(question => question.options.length >= 2)).toBe(true);
+  });
+
+  it('evalúa las cinco habilidades y adapta dos preguntas a la ruta elegida', () => {
+    const skillNames = ['Foco profundo', 'Pensamiento crítico', 'Memoria', 'Aprendizaje', 'Planificación'];
+    for (const route of Object.keys(intellectRoutes)) {
+      const questions = buildIntellectAssessment(route);
+      expect(questions).toHaveLength(12);
+      expect(new Set(questions.map(question => question.skill))).toEqual(new Set(skillNames));
+      expect(questions.filter(question => question.skill === intellectRoutes[route].skill)).toHaveLength(4);
+    }
+    expect(buildIntellectAssessment('logic').map(question => question.id)).not.toEqual(buildIntellectAssessment('memory').map(question => question.id));
+  });
+
+  it('genera resultados separados por habilidad', () => {
+    const questions = buildIntellectAssessment('memory');
+    const answers = Object.fromEntries(questions.map(question => [question.id, 1]));
+    const report = scoreIntellectAssessment(answers, 'memory');
+    expect(report).toMatchObject({ totalCorrect: 12, totalQuestions: 12, routeSkill: 'Memoria' });
+    expect(report.results.Memoria).toMatchObject({ correct: 4, total: 4, score: 100 });
+    expect(report.results.Planificación).toMatchObject({ correct: 2, total: 2, score: 100 });
   });
 });
 

@@ -1,4 +1,34 @@
 import { exerciseCatalog, foodCatalog, catalogById } from './catalogs.js';
+import { intellectAdaptiveQuestions, intellectCoreQuestions, intellectRoutes } from './data.js';
+
+export function buildIntellectAssessment(preference = 'logic') {
+  const selected = intellectRoutes[preference] ? preference : 'logic';
+  return [
+    ...intellectCoreQuestions.map(question => ({ ...question, tier: 'core' })),
+    ...(intellectAdaptiveQuestions[selected] || []).map(question => ({ ...question, tier: 'adaptive' })),
+  ];
+}
+
+export function scoreIntellectAssessment(answers = {}, preference = 'logic') {
+  const route = intellectRoutes[preference] || intellectRoutes.logic;
+  const questions = buildIntellectAssessment(preference);
+  const results = {};
+  for (const question of questions) {
+    if (!results[question.skill]) results[question.skill] = { correct: 0, total: 0, score: 0 };
+    const result = results[question.skill];
+    result.total += 1;
+    if (Number(answers[question.id]) === 1) result.correct += 1;
+  }
+  Object.values(results).forEach(result => result.score = Math.round(result.correct / Math.max(1, result.total) * 100));
+  return {
+    preference: intellectRoutes[preference] ? preference : 'logic',
+    routeLabel: route.label,
+    routeSkill: route.skill,
+    totalCorrect: Object.values(results).reduce((sum, result) => sum + result.correct, 0),
+    totalQuestions: questions.length,
+    results,
+  };
+}
 
 export const stageForDay = day => day <= 7 ? 'Diagnóstico y orden' : day <= 15 ? 'Construcción' : day <= 23 ? 'Intensificación' : 'Consolidación';
 

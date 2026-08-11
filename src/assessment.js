@@ -30,7 +30,7 @@ export const assessmentQuestions = [
   { id: 'produce', section: 'Alimentación', text: '¿Qué vegetales o frutas comés con gusto?', multi: true, options: ['Hojas verdes','Tomate','Zanahoria','Brócoli','Calabaza','Banana','Frutos rojos','Cítricos'].map(x => option(x)) },
   { id: 'dislikes', section: 'Alimentación', text: '¿Qué grupo preferís que no aparezca?', options: [option('none', 'Ninguno'), option('fish', 'Pescado'), option('dairy', 'Lácteos'), option('legumes', 'Legumbres'), option('vegetables', 'Verduras cocidas')] },
   { id: 'exclusions', section: 'Alimentación', text: '¿Hay una exclusión que debamos respetar?', options: [option('none', 'Ninguna'), option('gluten', 'Sin gluten'), option('lactose', 'Sin lactosa'), option('nuts', 'Sin frutos secos'), option('professional', 'Tengo indicaciones profesionales específicas')] },
-  { id: 'intellect', section: 'Intelecto', text: '¿Qué tipo de desafío intelectual querés recibir primero?', options: [option('logic', 'Lógica y patrones'), option('memory', 'Memoria'), option('focus', 'Atención y foco'), option('planning', 'Planificación y decisiones')] },
+  { id: 'intellect', section: 'Intelecto', text: '¿Qué tipo de desafío intelectual querés recibir primero?', options: [option('logic', 'Lógica y patrones'), option('memory', 'Memoria'), option('focus', 'Atención y foco'), option('planning', 'Planificación y decisiones'), option('learning', 'Aprendizaje y adaptación')] },
 ];
 
 export function answersFromForm(form) {
