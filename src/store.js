@@ -1,9 +1,9 @@
 import { attributes, combatSkills } from './data.js';
-import { buildHabitSchedule, buildNutritionWeek, buildTrainingPlan, calculateHardcorePenalty, calculateNutritionTargets, createDailyAssignment, generateDailyHabits, localDateKey, stageForDay, transactXp } from './engines.js';
+import { buildHabitSchedule, buildNutritionWeek, buildTrainingDay, buildTrainingPlan, calculateHardcorePenalty, calculateNutritionTargets, createDailyAssignment, effortProgression, generateDailyHabits, localDateKey, repetitionProgression, stageForDay, transactXp } from './engines.js';
 import { catalogById, exerciseCatalog, mealPresetCatalog } from './catalogs.js';
 
 const KEY = 'facu-owner-v1';
-const VERSION = 8;
+const VERSION = 10;
 const defaultAnswers = {
   sex: 'male', activity: 'light', goal: 'performance', routineType: 'full-body',
   planMode: 'normal',
@@ -133,6 +133,15 @@ export function migrateState(saved) {
     merged.plan.habitScheduleStage = stageForDay(merged.g30.day);
     if (merged.onboarded) merged.habits = generateDailyHabits(merged, new Date());
   }
+  if (oldVersion < 10) {
+    const routineType=merged.training.settings.type||saved.onboardingAnswers?.routineType||'full-body';
+    merged.training.weeklyPlan?.forEach(day=>{
+      if(!day.enabled)return;
+      day.split=day.split==='lower'?'lower':'upper';
+      day.exercises=buildTrainingDay(routineType,day.split);
+    });
+    merged.training.current=0;
+  }
   delete merged.checkin;
   if (!Array.isArray(merged.plan.habitSchedule) || merged.plan.habitSchedule.length !== 7) {
     merged.plan.habitSchedule = buildHabitSchedule(merged);
@@ -160,6 +169,16 @@ try { state = migrateState(JSON.parse(localStorage.getItem(KEY))); } catch { sta
 export const getState = () => state;
 export function setState(update) {
   state = update(structuredClone(state)) || state;
+  const routineType=state.training?.settings?.type||'full-body';
+  state.training?.weeklyPlan?.forEach(day=>day.exercises?.forEach(exercise=>{
+    const sets=Array.isArray(exercise.setData)?exercise.setData:[];
+    if(sets.length>1&&new Set(sets.map(set=>Number(set.reps))).size===1){
+      const progression=repetitionProgression(exercise.reps||sets[0].reps,sets.length,routineType);
+      const effort=effortProgression(sets.length,routineType);
+      sets.forEach((set,index)=>{set.reps=progression[index];set.rpe=effort[index];});
+    }
+    exercise.sets=sets.length||exercise.sets;
+  }));
   localStorage.setItem(KEY, JSON.stringify(state));
   window.dispatchEvent(new Event('statechange'));
 }

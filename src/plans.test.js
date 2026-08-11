@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { assessmentQuestions } from './assessment.js';
-import { buildHabitSchedule, buildIntellectAssessment, buildNutritionWeek, buildTrainingDay, buildTrainingPlan, calculateFoodNutrition, calculateHardcorePenalty, calculateMealNutrition, calculateNutritionTargets, createArenaBattle, createDailyAssignment, createWorkoutExercise, exerciseRestSeconds, formatMealIngredients, generateDailyHabits, generateDailyMissions, localDateKey, resolveArenaTurn, scoreIntellectAssessment, transactXp } from './engines.js';
+import { buildHabitSchedule, buildIntellectAssessment, buildNutritionWeek, buildTrainingDay, buildTrainingPlan, calculateFoodNutrition, calculateHardcorePenalty, calculateMealNutrition, calculateNutritionTargets, createArenaBattle, createDailyAssignment, createWorkoutExercise, effortProgression, exerciseRestSeconds, formatMealIngredients, generateDailyHabits, generateDailyMissions, localDateKey, repetitionProgression, resolveArenaTurn, scoreIntellectAssessment, transactXp } from './engines.js';
 import { exerciseCatalog, foodCatalog, habitCatalog, mealPresetCatalog } from './catalogs.js';
 import { intellectRoutes } from './data.js';
 
@@ -75,7 +75,13 @@ describe('bibliotecas de personalización', () => {
   it('adapta el descanso al método y al tipo de ejercicio', () => {
     expect(exerciseRestSeconds('bench-press', 'strength')).toBe(180);
     expect(exerciseRestSeconds('lateral-raise', 'hypertrophy')).toBe(60);
-    expect(createWorkoutExercise('bench-press', 'strength')).toMatchObject({ sets: 5, reps: 5, rest: 180 });
+    const strengthPress=createWorkoutExercise('bench-press', 'strength');
+    expect(strengthPress).toMatchObject({ sets: 3, reps: 7, rest: 180 });
+    expect(strengthPress.setData.map(set=>set.reps)).toEqual([7,6,5]);
+    expect(strengthPress.setData.map(set=>set.rpe)).toEqual([7,8,9]);
+    expect(repetitionProgression(7,4,'strength')).toEqual([7,6,5,4]);
+    expect(effortProgression(2,'heavy-duty')).toEqual([9,10]);
+    expect(createWorkoutExercise('bench-press','strength',9).setData).toHaveLength(5);
   });
 });
 
@@ -150,6 +156,9 @@ describe('generación de planes', () => {
     expect(plan.find(day => day.day === 'Lunes').title).toContain('Hipertrofia');
     expect(plan.filter(day => day.enabled).map(day => day.split)).toEqual(['upper', 'lower', 'upper', 'lower']);
     expect(buildTrainingDay('strength', 'lower').every(exercise => ['Piernas', 'Core'].includes(exerciseCatalog.find(item => item.id === exercise.id).muscle))).toBe(true);
+    const upper=buildTrainingDay('hypertrophy','upper');
+    expect(upper.slice(0,2).map(exercise=>exercise.id)).toEqual(['bench-press','dumbbell-press']);
+    expect(upper.every(exercise=>exercise.setData.length===3)).toBe(true);
   });
 
   it('arma siete días de alimentación dentro del objetivo', () => {

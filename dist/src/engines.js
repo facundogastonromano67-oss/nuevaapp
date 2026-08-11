@@ -294,8 +294,8 @@ const exerciseLibrary = {
 
 const routineTemplates = {
   'heavy-duty': { label: 'Heavy Duty', sets: 2, reps: 7, rest: 150, splits: [['press', 'pulldown', 'squat', 'curl', 'triceps'], ['deadlift', 'row', 'shoulder', 'lunge', 'plank']] },
-  hypertrophy: { label: 'Hipertrofia', sets: 4, reps: 10, rest: 75, splits: [['press', 'row', 'shoulder', 'triceps'], ['squat', 'deadlift', 'lunge', 'plank'], ['pulldown', 'press', 'row', 'curl'], ['squat', 'lunge', 'deadlift', 'plank']] },
-  strength: { label: 'Fuerza', sets: 5, reps: 5, rest: 180, splits: [['squat', 'press', 'row', 'plank'], ['deadlift', 'shoulder', 'pulldown', 'lunge']] },
+  hypertrophy: { label: 'Hipertrofia', sets: 3, reps: 12, rest: 75, splits: [['press', 'row', 'shoulder', 'triceps'], ['squat', 'deadlift', 'lunge', 'plank'], ['pulldown', 'press', 'row', 'curl'], ['squat', 'lunge', 'deadlift', 'plank']] },
+  strength: { label: 'Fuerza', sets: 3, reps: 7, rest: 180, splits: [['squat', 'press', 'row', 'plank'], ['deadlift', 'shoulder', 'pulldown', 'lunge']] },
   'full-body': { label: 'Full Body', sets: 3, reps: 10, rest: 90, splits: [['squat', 'press', 'row', 'plank'], ['deadlift', 'shoulder', 'pulldown', 'lunge'], ['squat', 'press', 'pulldown', 'curl', 'triceps']] },
 };
 
@@ -310,27 +310,42 @@ export function exerciseRestSeconds(exerciseId,routineType='full-body'){
   return exercise?.type==='compound'?105:exercise?.type==='core'?60:75;
 }
 
+export function repetitionProgression(baseReps=10,sets=3,routineType='full-body'){
+  const count=Math.max(1,Math.min(5,Math.round(Number(sets)||3)));
+  const start=Math.max(1,Math.round(Number(baseReps)||10));
+  const drops=routineType==='hypertrophy'?[0,2,3,4,5]:['strength','heavy-duty'].includes(routineType)?[0,1,2,3,3]:[0,1,2,3,4];
+  return Array.from({length:count},(_,index)=>Math.max(3,start-drops[index]));
+}
+
+export function effortProgression(sets=3,routineType='full-body'){
+  const count=Math.max(1,Math.min(5,Math.round(Number(sets)||3)));
+  const targets=routineType==='heavy-duty'?[9,10,10,10,10]:routineType==='hypertrophy'?[8,8,9,9,10]:routineType==='strength'?[7,8,9,9,10]:[7,8,8,9,9];
+  return targets.slice(0,count);
+}
+
 export function createWorkoutExercise(exerciseId,routineType='full-body',setsOverride){
   const resolvedId=exerciseAliases[exerciseId]||exerciseId;
   const catalogExercise=catalogById(exerciseCatalog,resolvedId);
   const template=routineTemplates[routineType]||routineTemplates['full-body'];
   const legacy=exerciseLibrary[exerciseId]||exerciseLibrary.squat;
   const base=catalogExercise?{name:catalogExercise.name,target:`${catalogExercise.muscle} · ${catalogExercise.type==='isolation'?'aislamiento':'trabajo principal'}`,tech:catalogExercise.tech,img:catalogExercise.img,visualIndex:catalogExercise.visualIndex,fallbackImg:catalogExercise.fallbackImg}:{...legacy};
-  const reps=['strength','heavy-duty'].includes(routineType)?template.reps:(catalogExercise?.defaultReps||template.reps);
-  const sets=Math.max(1,setsOverride||template.sets);
+  const reps=['strength','heavy-duty'].includes(routineType)?template.reps:routineType==='hypertrophy'?Math.max(template.reps,catalogExercise?.defaultReps||0):(catalogExercise?.defaultReps||template.reps);
+  const sets=Math.max(1,Math.min(5,Math.round(Number(setsOverride)||template.sets)));
   const rest=exerciseRestSeconds(resolvedId,routineType);
-  return{id:resolvedId,...base,sets,reps,rest,setData:Array.from({length:sets},()=>({kg:0,reps,rpe:7,done:false})),notes:''};
+  const progression=repetitionProgression(reps,sets,routineType);
+  const effort=effortProgression(sets,routineType);
+  return{id:resolvedId,...base,sets,reps,rest,setData:progression.map((setReps,index)=>({kg:0,reps:setReps,rpe:effort[index],done:false})),notes:''};
 }
 
 const splitExerciseIds = {
-  upper: ['bench-press', 'lat-pulldown', 'overhead-press', 'dumbbell-row', 'lateral-raise', 'barbell-curl', 'triceps-pushdown'],
-  lower: ['back-squat', 'romanian-deadlift', 'leg-press', 'bulgarian-split', 'leg-curl', 'calf-raise', 'plank'],
+  upper: ['bench-press', 'dumbbell-press', 'lat-pulldown', 'dumbbell-row', 'overhead-press', 'lateral-raise', 'barbell-curl', 'triceps-pushdown'],
+  lower: ['back-squat', 'leg-press', 'romanian-deadlift', 'leg-curl', 'bulgarian-split', 'leg-extension', 'calf-raise', 'plank'],
 };
 
 export function buildTrainingDay(routineType = 'full-body', split = 'upper') {
   const template = routineTemplates[routineType] || routineTemplates['full-body'];
   const selectedSplit = splitExerciseIds[split] ? split : 'upper';
-  const exerciseCount = routineType === 'heavy-duty' ? 5 : routineType === 'strength' ? 5 : 6;
+  const exerciseCount = routineType==='hypertrophy'?(selectedSplit==='upper'?8:6):6;
   return splitExerciseIds[selectedSplit].slice(0, exerciseCount).map(id => createWorkoutExercise(id, routineType, template.sets));
 }
 
