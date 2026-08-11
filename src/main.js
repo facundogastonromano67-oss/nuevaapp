@@ -41,7 +41,8 @@ window.addEventListener('unhandledrejection', event => showRecovery(event.reason
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   addEventListener('load', async () => {
     try {
-      const registration = await navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`);
+      const baseUrl = import.meta.env?.BASE_URL || './';
+      const registration = await navigator.serviceWorker.register(`${baseUrl}sw.js`);
       registration.update();
     } catch (error) {
       console.warn('PWA no disponible; la app continúa en modo local.', error);

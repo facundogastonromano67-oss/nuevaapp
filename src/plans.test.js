@@ -1,11 +1,34 @@
 import { describe, expect, it } from 'vitest';
 import { assessmentQuestions } from './assessment.js';
-import { buildNutritionWeek, buildTrainingPlan, calculateNutritionTargets } from './engines.js';
+import { buildNutritionWeek, buildTrainingPlan, calculateFoodNutrition, calculateMealNutrition, calculateNutritionTargets, createWorkoutExercise, exerciseRestSeconds } from './engines.js';
+import { exerciseCatalog, foodCatalog, habitCatalog } from './catalogs.js';
 
 describe('evaluación guiada', () => {
   it('contiene exactamente 30 preguntas con opciones', () => {
     expect(assessmentQuestions).toHaveLength(30);
     expect(assessmentQuestions.every(question => question.options.length >= 2)).toBe(true);
+  });
+});
+
+describe('bibliotecas de personalización', () => {
+  it('ofrece listas extensas y organizadas', () => {
+    expect(habitCatalog.length).toBeGreaterThanOrEqual(35);
+    expect(exerciseCatalog.length).toBeGreaterThanOrEqual(35);
+    expect(foodCatalog.length).toBeGreaterThanOrEqual(30);
+  });
+
+  it('calcula dos huevos como 12 g de proteína', () => {
+    expect(calculateFoodNutrition('egg', 2)).toMatchObject({ kcal: 140, p: 12 });
+  });
+
+  it('suma automáticamente los alimentos de una comida', () => {
+    expect(calculateMealNutrition([{ foodId: 'egg', quantity: 2 }, { foodId: 'bread', quantity: 2 }])).toMatchObject({ kcal: 300, p: 20 });
+  });
+
+  it('adapta el descanso al método y al tipo de ejercicio', () => {
+    expect(exerciseRestSeconds('bench-press', 'strength')).toBe(180);
+    expect(exerciseRestSeconds('lateral-raise', 'hypertrophy')).toBe(60);
+    expect(createWorkoutExercise('bench-press', 'strength')).toMatchObject({ sets: 5, reps: 5, rest: 180 });
   });
 });
 

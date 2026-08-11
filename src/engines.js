@@ -1,3 +1,5 @@
+import { exerciseCatalog, foodCatalog, catalogById } from './catalogs.js';
+
 export const stageForDay = day => day <= 7 ? 'Diagnóstico y orden' : day <= 15 ? 'Construcción' : day <= 23 ? 'Intensificación' : 'Consolidación';
 
 export function levelFromXp(xp) {
@@ -74,9 +76,32 @@ const routineTemplates = {
   'full-body': { label: 'Full Body', sets: 3, reps: 10, rest: 90, splits: [['squat', 'press', 'row', 'plank'], ['deadlift', 'shoulder', 'pulldown', 'lunge'], ['squat', 'press', 'pulldown', 'curl', 'triceps']] },
 };
 
+const exerciseAliases={press:'incline-press',pulldown:'lat-pulldown',squat:'goblet-squat',curl:'barbell-curl',triceps:'triceps-pushdown',deadlift:'romanian-deadlift',row:'dumbbell-row',shoulder:'overhead-press',lunge:'bulgarian-split',plank:'plank'};
+
+export function exerciseRestSeconds(exerciseId,routineType='full-body'){
+  const exercise=catalogById(exerciseCatalog,exerciseAliases[exerciseId]||exerciseId);
+  if(exercise?.type==='cardio')return 30;
+  if(routineType==='strength')return exercise?.type==='compound'?180:90;
+  if(routineType==='heavy-duty')return exercise?.type==='compound'?150:90;
+  if(routineType==='hypertrophy')return exercise?.type==='compound'?90:60;
+  return exercise?.type==='compound'?105:exercise?.type==='core'?60:75;
+}
+
+export function createWorkoutExercise(exerciseId,routineType='full-body',setsOverride){
+  const resolvedId=exerciseAliases[exerciseId]||exerciseId;
+  const catalogExercise=catalogById(exerciseCatalog,resolvedId);
+  const template=routineTemplates[routineType]||routineTemplates['full-body'];
+  const legacy=exerciseLibrary[exerciseId]||exerciseLibrary.squat;
+  const base=catalogExercise?{name:catalogExercise.name,target:`${catalogExercise.muscle} · ${catalogExercise.type==='isolation'?'aislamiento':'trabajo principal'}`,tech:catalogExercise.tech,img:catalogExercise.img}:{...legacy};
+  const reps=['strength','heavy-duty'].includes(routineType)?template.reps:(catalogExercise?.defaultReps||template.reps);
+  const sets=Math.max(1,setsOverride||template.sets);
+  const rest=exerciseRestSeconds(resolvedId,routineType);
+  return{id:resolvedId,...base,sets,reps,rest,setData:Array.from({length:sets},()=>({kg:0,reps,rpe:7,done:false})),notes:''};
+}
+
 const makeExercise = (id, template) => {
-  const base = exerciseLibrary[id] || exerciseLibrary.squat;
-  return { id, ...base, sets: template.sets, reps: template.reps, rest: template.rest, setData: Array.from({ length: template.sets }, () => ({ kg: 0, reps: template.reps, rpe: 7, done: false })), notes: '' };
+  const routineType=Object.keys(routineTemplates).find(key=>routineTemplates[key]===template)||'full-body';
+  return createWorkoutExercise(id,routineType,template.sets);
 };
 
 export function buildTrainingPlan(answers = {}) {
@@ -106,13 +131,46 @@ const mealPool = [
   ['Fruta y yogur', 'Fruta de estación y yogur', 'Lavá, cortá y serví con yogur.', 'https://images.unsplash.com/photo-1490474418585-ba9bad8fd0ea?auto=format&fit=crop&w=900&q=80'],
 ];
 
+const mealFoodTemplates=[
+  [['oats',50],['greek-yogurt',200],['banana',1],['whey',1]],
+  [['egg',2],['bread',2],['tomato',100],['banana',1]],
+  [['chicken',150],['rice',200],['broccoli',100],['olive-oil',.5]],
+  [['beef',150],['potato',250],['greens',100],['olive-oil',.5]],
+  [['greek-yogurt',250],['berries',100],['oats',30]],
+  [['bread',2],['chicken',100],['greens',50],['tomato',100]],
+  [['salmon',160],['sweet-potato',250],['greens',100]],
+  [['pasta',200],['chicken',130],['tomato',100]],
+  [['apple',1],['greek-yogurt',200]],
+];
+
+export function calculateFoodNutrition(foodId,quantity){
+  const food=catalogById(foodCatalog,foodId);
+  if(!food)return{kcal:0,p:0,c:0,f:0};
+  const multiplier=Math.max(0,Number(quantity)||0)/food.baseAmount;
+  return{kcal:food.kcal*multiplier,p:food.p*multiplier,c:food.c*multiplier,f:food.f*multiplier};
+}
+
+export function calculateMealNutrition(foods=[]){
+  const total=foods.reduce((sum,item)=>{const value=calculateFoodNutrition(item.foodId,item.quantity);return{kcal:sum.kcal+value.kcal,p:sum.p+value.p,c:sum.c+value.c,f:sum.f+value.f};},{kcal:0,p:0,c:0,f:0});
+  return Object.fromEntries(Object.entries(total).map(([key,value])=>[key,Math.round(value*10)/10]));
+}
+
+function scaleMealFoods(template,targetKcal){
+  const baseFoods=template.map(([foodId,quantity])=>({foodId,quantity}));
+  const baseKcal=calculateMealNutrition(baseFoods).kcal||targetKcal;
+  const factor=Math.max(.5,Math.min(2,targetKcal/baseKcal));
+  return baseFoods.map(item=>({foodId:item.foodId,quantity:Math.round(item.quantity*factor*10)/10}));
+}
+
 export function buildNutritionWeek(targets, answers = {}) {
   const count = Math.max(3, Math.min(5, Number(answers.mealCount) || 4));
   const distribution = count === 3 ? [.25, .4, .35] : count === 5 ? [.2, .3, .15, .25, .1] : [.23, .34, .16, .27];
   return days.map((day, dayIndex) => ({ day, meals: distribution.map((share, index) => {
-    const [name, ingredients, steps, img] = mealPool[(dayIndex * 2 + index) % mealPool.length];
+    const poolIndex=(dayIndex*2+index)%mealPool.length;
+    const [name, ingredients, steps, img] = mealPool[poolIndex];
     const slots = count === 3 ? ['Desayuno', 'Almuerzo', 'Cena'] : count === 5 ? ['Desayuno', 'Almuerzo', 'Merienda', 'Cena', 'Colación'] : ['Desayuno', 'Almuerzo', 'Merienda', 'Cena'];
-    return { id: `${dayIndex}-${index}`, slot: slots[index], name, kcal: Math.round(targets.calories * share / 10) * 10, p: Math.round(targets.protein * share), c: Math.round(targets.carbs * share), f: Math.round(targets.fat * share), ingredients, steps, img };
+    const foods=scaleMealFoods(mealFoodTemplates[poolIndex],targets.calories*share);
+    return { id: `${dayIndex}-${index}`, slot: slots[index], name, ...calculateMealNutrition(foods), foods, ingredients, steps, img };
   }) }));
 }
 
