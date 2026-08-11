@@ -1,4 +1,4 @@
-import { exerciseCatalog, foodCatalog, habitCatalog, catalogById } from './catalogs.js';
+import { exerciseCatalog, foodCatalog, habitCatalog, catalogById, mealPresetsForSlot } from './catalogs.js';
 import { intellectAdaptiveQuestions, intellectCoreQuestions, intellectRoutes } from './data.js';
 
 export function buildIntellectAssessment(preference = 'logic') {
@@ -134,6 +134,56 @@ export function combat(playerPower, rating, roll = .5) {
   return { win: score >= enemy, reward: score >= enemy ? 35 : 8, enemy, score, ratingDelta: score >= enemy ? 18 : -10 };
 }
 
+const arenaBoosts = [
+  { id: 'fury', emoji: '🔥', name: 'Furia', detail: '+45% de daño en el próximo ataque' },
+  { id: 'shield', emoji: '🛡️', name: 'Escudo', detail: 'Reduce 70% el próximo golpe rival' },
+  { id: 'heal', emoji: '💚', name: 'Recuperación', detail: 'Recupera 24 puntos de vida' },
+];
+
+export function createArenaBattle(state, mode = 'system', roll = .5) {
+  if (!['system', 'pvp'].includes(mode)) return null;
+  const rating = Number(state?.arena?.rating) || 1000;
+  const rivalNames = mode === 'pvp' ? ['Cazador Carmesí', 'Centinela Nocturno', 'Monarca Errante'] : ['Guardián del Sistema', 'Bestia de Prueba', 'Caballero de las Sombras'];
+  const enemyPower = Math.round(13 + rating / 160 + roll * 5);
+  return {
+    id: `battle-${Date.now()}`, mode, status: 'active', round: 1,
+    playerHp: 100, enemyHp: 100, enemyPower,
+    enemyName: rivalNames[Math.min(rivalNames.length - 1, Math.floor(roll * rivalNames.length))],
+    boosts: arenaBoosts.map(boost => ({ ...boost, unlocked: false, used: false })),
+    selectedBoost: null,
+    log: [`La simulación comenzó contra ${rivalNames[Math.min(rivalNames.length - 1, Math.floor(roll * rivalNames.length))]}.`],
+  };
+}
+
+export function resolveArenaTurn(battle, skill, boostId = null, roll = .5) {
+  if (!battle || battle.status !== 'active' || !skill) return battle;
+  const next = structuredClone(battle);
+  const boost = next.boosts.find(item => item.id === boostId && item.unlocked && !item.used);
+  let attackMultiplier = 1, defenseMultiplier = 1;
+  if (boost?.id === 'fury') attackMultiplier = 1.45;
+  if (boost?.id === 'shield') defenseMultiplier = .3;
+  if (boost?.id === 'heal') next.playerHp = Math.min(100, next.playerHp + 24);
+  if (boost) boost.used = true;
+  const damage = Math.max(7, Math.round((Number(skill.power) + 8 + roll * 9) * attackMultiplier));
+  next.enemyHp = Math.max(0, next.enemyHp - damage);
+  next.log.unshift(`${skill.name} causó ${damage} de daño${boost ? ` con ${boost.name}` : ''}.`);
+  if (next.enemyHp <= 0) {
+    next.status = 'victory';
+    next.log.unshift('Victoria confirmada por el Sistema.');
+    return next;
+  }
+  const retaliation = Math.max(5, Math.round((next.enemyPower + (1 - roll) * 8) * defenseMultiplier));
+  next.playerHp = Math.max(0, next.playerHp - retaliation);
+  next.log.unshift(`${next.enemyName} respondió con ${retaliation} de daño.`);
+  next.round += 1;
+  next.selectedBoost = null;
+  if (next.playerHp <= 0) {
+    next.status = 'defeat';
+    next.log.unshift('La simulación terminó. Revisá tu estrategia y volvé a intentarlo.');
+  }
+  return next;
+}
+
 export function weeklySummary(state) {
   const completed = state.history.filter(event => event.type === 'task' || event.type === 'mission').filter(event => Date.now() - event.at < 604800000).length;
   const habits = state.habits.filter(habit => habit.done).length;
@@ -205,10 +255,17 @@ export function createWorkoutExercise(exerciseId,routineType='full-body',setsOve
   return{id:resolvedId,...base,sets,reps,rest,setData:Array.from({length:sets},()=>({kg:0,reps,rpe:7,done:false})),notes:''};
 }
 
-const makeExercise = (id, template) => {
-  const routineType=Object.keys(routineTemplates).find(key=>routineTemplates[key]===template)||'full-body';
-  return createWorkoutExercise(id,routineType,template.sets);
+const splitExerciseIds = {
+  upper: ['bench-press', 'lat-pulldown', 'overhead-press', 'dumbbell-row', 'lateral-raise', 'barbell-curl', 'triceps-pushdown'],
+  lower: ['back-squat', 'romanian-deadlift', 'leg-press', 'bulgarian-split', 'leg-curl', 'calf-raise', 'plank'],
 };
+
+export function buildTrainingDay(routineType = 'full-body', split = 'upper') {
+  const template = routineTemplates[routineType] || routineTemplates['full-body'];
+  const selectedSplit = splitExerciseIds[split] ? split : 'upper';
+  const exerciseCount = routineType === 'heavy-duty' ? 5 : routineType === 'strength' ? 5 : 6;
+  return splitExerciseIds[selectedSplit].slice(0, exerciseCount).map(id => createWorkoutExercise(id, routineType, template.sets));
+}
 
 export function buildTrainingPlan(answers = {}) {
   const template = routineTemplates[answers.routineType] || routineTemplates['full-body'];
@@ -218,36 +275,13 @@ export function buildTrainingPlan(answers = {}) {
   let workoutIndex = 0;
   return days.map(day => {
     const enabled = selected.includes(day);
-    const split = template.splits[workoutIndex % template.splits.length];
-    const entry = { day, enabled, title: enabled ? `${template.label} · Sesión ${workoutIndex + 1}` : 'Recuperación', exercises: enabled ? split.map(id => makeExercise(id, template)) : [] };
+    const split = workoutIndex % 2 === 0 ? 'upper' : 'lower';
+    const splitLabel = split === 'upper' ? 'Tren superior' : 'Tren inferior';
+    const entry = { day, enabled, split, title: enabled ? `${template.label} · ${splitLabel}` : 'Recuperación', exercises: enabled ? buildTrainingDay(answers.routineType, split) : [] };
     if (enabled) workoutIndex++;
     return entry;
   });
 }
-
-const mealPool = [
-  ['Avena proteica con banana', 'Avena, yogur, banana y canela', 'Mezclá la avena con yogur y terminá con banana.', 'https://images.unsplash.com/photo-1517673132405-a56a62b18caf?auto=format&fit=crop&w=900&q=80'],
-  ['Huevos, tostadas y fruta', 'Huevos, pan integral, tomate y fruta', 'Cociná los huevos y servilos sobre tostadas con tomate.', 'https://images.unsplash.com/photo-1525351484163-7529414344d8?auto=format&fit=crop&w=900&q=80'],
-  ['Bowl de pollo y arroz', 'Pollo, arroz, brócoli, zanahoria y oliva', 'Dorá el pollo, cociná el arroz y sumá vegetales.', 'https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=900&q=80'],
-  ['Carne magra con papa', 'Carne magra, papa, ensalada y oliva', 'Horneá las papas, cociná la carne y acompañá con ensalada.', 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=900&q=80'],
-  ['Yogur con frutos rojos', 'Yogur, frutos rojos, avena y semillas', 'Mezclá todo y conservá frío hasta comer.', 'https://images.unsplash.com/photo-1511690656952-34342bb7c2f2?auto=format&fit=crop&w=900&q=80'],
-  ['Sándwich proteico', 'Pan integral, huevo o pollo, hojas verdes y tomate', 'Armá el sándwich y tostalo si lo preferís.', 'https://images.unsplash.com/photo-1528735602780-2552fd46c7af?auto=format&fit=crop&w=900&q=80'],
-  ['Salmón con batata', 'Salmón, batata, hojas verdes y limón', 'Horneá batata y salmón; serví con verdes.', 'https://images.unsplash.com/photo-1467003909585-2f8a72700288?auto=format&fit=crop&w=900&q=80'],
-  ['Pasta con pollo y vegetales', 'Pasta, pollo, tomate y vegetales', 'Cociná la pasta, salteá el resto y combiná.', 'https://images.unsplash.com/photo-1473093295043-cdd812d0e601?auto=format&fit=crop&w=900&q=80'],
-  ['Fruta y yogur', 'Fruta de estación y yogur', 'Lavá, cortá y serví con yogur.', 'https://images.unsplash.com/photo-1490474418585-ba9bad8fd0ea?auto=format&fit=crop&w=900&q=80'],
-];
-
-const mealFoodTemplates=[
-  [['oats',50],['greek-yogurt',200],['banana',1],['whey',1]],
-  [['egg',2],['bread',2],['tomato',100],['banana',1]],
-  [['chicken',150],['rice',200],['broccoli',100],['olive-oil',.5]],
-  [['beef',150],['potato',250],['greens',100],['olive-oil',.5]],
-  [['greek-yogurt',250],['berries',100],['oats',30]],
-  [['bread',2],['chicken',100],['greens',50],['tomato',100]],
-  [['salmon',160],['sweet-potato',250],['greens',100]],
-  [['pasta',200],['chicken',130],['tomato',100]],
-  [['apple',1],['greek-yogurt',200]],
-];
 
 export function calculateFoodNutrition(foodId,quantity){
   const food=catalogById(foodCatalog,foodId);
@@ -265,18 +299,34 @@ function scaleMealFoods(template,targetKcal){
   const baseFoods=template.map(([foodId,quantity])=>({foodId,quantity}));
   const baseKcal=calculateMealNutrition(baseFoods).kcal||targetKcal;
   const factor=Math.max(.5,Math.min(2,targetKcal/baseKcal));
-  return baseFoods.map(item=>({foodId:item.foodId,quantity:Math.round(item.quantity*factor*10)/10}));
+  return baseFoods.map(item=>{
+    const food=catalogById(foodCatalog,item.foodId);
+    const raw=item.quantity*factor;
+    const quantity=['g','ml'].includes(food?.unit)?Math.max(5,Math.round(raw/5)*5):Math.max(.5,Math.round(raw*2)/2);
+    return{foodId:item.foodId,quantity};
+  });
+}
+
+export function formatMealIngredients(foods=[]){
+  return foods.map(item=>{
+    const food=catalogById(foodCatalog,item.foodId);
+    if(!food)return'';
+    const quantity=Number(item.quantity);
+    const unit=food.unit==='unidad'&&quantity!==1?'unidades':food.unit==='rebanada'&&quantity!==1?'rebanadas':food.unit;
+    return`${quantity} ${unit} de ${food.name}`;
+  }).filter(Boolean).join(', ');
 }
 
 export function buildNutritionWeek(targets, answers = {}) {
   const count = Math.max(3, Math.min(5, Number(answers.mealCount) || 4));
   const distribution = count === 3 ? [.25, .4, .35] : count === 5 ? [.2, .3, .15, .25, .1] : [.23, .34, .16, .27];
+  const slots = count === 3 ? ['Desayuno', 'Almuerzo', 'Cena'] : count === 5 ? ['Desayuno', 'Almuerzo', 'Merienda', 'Cena', 'Colación'] : ['Desayuno', 'Almuerzo', 'Merienda', 'Cena'];
   return days.map((day, dayIndex) => ({ day, meals: distribution.map((share, index) => {
-    const poolIndex=(dayIndex*2+index)%mealPool.length;
-    const [name, ingredients, steps, img] = mealPool[poolIndex];
-    const slots = count === 3 ? ['Desayuno', 'Almuerzo', 'Cena'] : count === 5 ? ['Desayuno', 'Almuerzo', 'Merienda', 'Cena', 'Colación'] : ['Desayuno', 'Almuerzo', 'Merienda', 'Cena'];
-    const foods=scaleMealFoods(mealFoodTemplates[poolIndex],targets.calories*share);
-    return { id: `${dayIndex}-${index}`, slot: slots[index], name, ...calculateMealNutrition(foods), foods, ingredients, steps, img };
+    const slot=slots[index], compatible=mealPresetsForSlot(slot);
+    const preset=compatible[(dayIndex+index)%compatible.length];
+    const foods=scaleMealFoods(preset.foods,targets.calories*share);
+    const ingredients=formatMealIngredients(foods);
+    return { id: `${dayIndex}-${index}`, slot, presetId:preset.id, mealGroup:preset.group, name:preset.name, ...calculateMealNutrition(foods), foods, ingredients, steps:`${preset.steps} Cantidades para esta porción: ${ingredients}.`, img:preset.img };
   }) }));
 }
 

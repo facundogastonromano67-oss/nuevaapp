@@ -16,6 +16,16 @@ export const academy=[
  {id:'physical',title:'Rendimiento físico',skill:'Recuperación',lessons:[['Sobrecarga progresiva','Progresá una variable por vez: repeticiones, carga, series o control técnico.'],['RPE útil','RPE 8 significa unas dos repeticiones en reserva. Registrarlo mejora decisiones futuras.'],['Recuperación activa','Sueño, proteína, pasos y manejo de fatiga sostienen más progreso que sesiones heroicas aisladas.']]}];
 export const combatSkills=Array.from({length:28},(_,i)=>({id:i+1,name:['Corte umbral','Guardia espectral','Lectura táctica','Pulso de control'][i%4]+' '+(Math.floor(i/4)+1),type:['Ataque','Defensa','Táctica','Control'][i%4],power:8+(i%7)*2,unlocked:i<8}));
 export const minigames=['Memoria de runas','Reflejo relámpago','Cálculo veloz','Foco sostenido','Tiro preciso','Decisión táctica','Secuencia sombra','Reacción dual','Patrón oculto','Pulso estable'];
+export const avatarPresets = [
+  {id:'shadow',emoji:'🥷',name:'Cazador sombra',colors:['#101d30','#376fb3']},
+  {id:'monarch',emoji:'👑',name:'Monarca',colors:['#241b35','#8d62dc']},
+  {id:'warrior',emoji:'⚔️',name:'Guerrero',colors:['#2a1719','#c14f55']},
+  {id:'mage',emoji:'🔮',name:'Mago táctico',colors:['#17152d','#655ad3']},
+  {id:'archer',emoji:'🏹',name:'Explorador',colors:['#132820','#3e9a70']},
+  {id:'guardian',emoji:'🛡️',name:'Guardián',colors:['#172431','#397eae']},
+  {id:'rogue',emoji:'🗡️',name:'Acechador',colors:['#22252a','#727b86']},
+  {id:'strategist',emoji:'♟️',name:'Estratega',colors:['#272113','#b78c3d']},
+];
 
 const iq = (id, skill, category, prompt, options) => ({
   id, skill, category, prompt,

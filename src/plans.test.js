@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { assessmentQuestions } from './assessment.js';
-import { buildIntellectAssessment, buildNutritionWeek, buildTrainingPlan, calculateFoodNutrition, calculateMealNutrition, calculateNutritionTargets, createDailyAssignment, createWorkoutExercise, exerciseRestSeconds, generateDailyHabits, generateDailyMissions, localDateKey, scoreIntellectAssessment } from './engines.js';
-import { exerciseCatalog, foodCatalog, habitCatalog } from './catalogs.js';
+import { buildIntellectAssessment, buildNutritionWeek, buildTrainingDay, buildTrainingPlan, calculateFoodNutrition, calculateMealNutrition, calculateNutritionTargets, createArenaBattle, createDailyAssignment, createWorkoutExercise, exerciseRestSeconds, formatMealIngredients, generateDailyHabits, generateDailyMissions, localDateKey, resolveArenaTurn, scoreIntellectAssessment } from './engines.js';
+import { exerciseCatalog, foodCatalog, habitCatalog, mealPresetCatalog } from './catalogs.js';
 import { intellectRoutes } from './data.js';
 
 describe('evaluación guiada', () => {
@@ -106,6 +106,8 @@ describe('generación de planes', () => {
     expect(plan).toHaveLength(7);
     expect(plan.filter(day => day.enabled)).toHaveLength(4);
     expect(plan.find(day => day.day === 'Lunes').title).toContain('Hipertrofia');
+    expect(plan.filter(day => day.enabled).map(day => day.split)).toEqual(['upper', 'lower', 'upper', 'lower']);
+    expect(buildTrainingDay('strength', 'lower').every(exercise => ['Piernas', 'Core'].includes(exerciseCatalog.find(item => item.id === exercise.id).muscle))).toBe(true);
   });
 
   it('arma siete días de alimentación dentro del objetivo', () => {
@@ -114,5 +116,20 @@ describe('generación de planes', () => {
     expect(week).toHaveLength(7);
     expect(week.every(day => day.meals.length === 4)).toBe(true);
     expect(week[0].meals.reduce((sum, meal) => sum + meal.kcal, 0)).toBeCloseTo(targets.calories, -1);
+    expect(week.every(day => day.meals.every(meal => mealPresetCatalog.find(preset => preset.id === meal.presetId).allowedSlots.includes(meal.slot)))).toBe(true);
+    expect(formatMealIngredients([{ foodId: 'egg', quantity: 2 }])).toContain('2 unidades de Huevo');
+  });
+});
+
+describe('Arena por rondas', () => {
+  it('crea tres boosts funcionales y permite usarlos con una habilidad', () => {
+    const state = { arena: { rating: 1000 } };
+    const battle = createArenaBattle(state, 'system', .3);
+    battle.boosts[0].unlocked = true;
+    const next = resolveArenaTurn(battle, { name: 'Corte umbral', power: 20 }, 'fury', 1);
+    expect(next.boosts).toHaveLength(3);
+    expect(next.boosts[0].used).toBe(true);
+    expect(next.enemyHp).toBeLessThan(100);
+    expect(createArenaBattle(state, 'dungeon')).toBe(null);
   });
 });

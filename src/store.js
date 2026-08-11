@@ -2,7 +2,7 @@ import { attributes, combatSkills } from './data.js';
 import { buildNutritionWeek, buildTrainingPlan, calculateNutritionTargets, createDailyAssignment, localDateKey } from './engines.js';
 
 const KEY = 'facu-owner-v1';
-const VERSION = 4;
+const VERSION = 5;
 const defaultAnswers = {
   sex: 'male', activity: 'light', goal: 'performance', routineType: 'full-body',
   trainingDays: ['Lunes', 'Miércoles', 'Viernes'], weeklyFrequency: '3', duration: '50',
@@ -21,7 +21,7 @@ const habitSeed = [
 ].map((item, index) => ({ id: `h${index}`, name: item[0], target: item[1], baseline: 'Semana 1', active: true, done: false, custom: false }));
 
 export const initialState = () => {
-  const profile = { name: 'FACU', title: 'Monarca en Ascenso', age: '', height: '', weight: '', goal: 'Rendimiento integral', context: '' };
+  const profile = { name: 'FACU', title: 'Monarca en Ascenso', age: '', height: '', weight: '', goal: 'Rendimiento integral', context: '', avatarPreset: 'shadow', avatarImage: '' };
   const targets = calculateNutritionTargets(profile, defaultAnswers);
   const weeklyPlan = buildTrainingPlan(defaultAnswers);
   const nutritionWeek = buildNutritionWeek(targets, defaultAnswers);
@@ -54,7 +54,7 @@ export const initialState = () => {
       settings: { calories: targets.calories, protein: targets.protein, carbs: targets.carbs, fat: targets.fat, count: 4, budget: 'Medio' },
     },
     academy: { completed: [], quizScores: {} },
-    arena: { rating: 1000, wins: 0, losses: 0, deck: [1, 2, 3, 4, 5], skills: combatSkills, history: [] },
+    arena: { rating: 1000, wins: 0, losses: 0, deck: [1, 2, 3, 4, 5], skills: combatSkills, history: [], battle: null, selectedMode: null },
     history: [],
     checkin: { sleep: 7, energy: 4, mood: 4, note: '' },
     daily: { dateKey: '', dayName: '', assignedAt: 0, welcomeSeenDate: '', noticeSeenDate: '', recalibrations: 0, hasTraining: false, trainingTitle: '' },
@@ -96,6 +96,15 @@ export function migrateState(saved) {
     merged.onboarded = false;
     merged.assessmentVersion = 3;
   }
+  if (oldVersion < 5) {
+    const enabledDays = Array.isArray(saved.training?.weeklyPlan) ? saved.training.weeklyPlan.filter(day => day.enabled).map(day => day.day) : defaultAnswers.trainingDays;
+    const routineType = merged.training.settings.type || saved.onboardingAnswers?.routineType || 'full-body';
+    merged.training.weeklyPlan = buildTrainingPlan({ ...defaultAnswers, ...saved.onboardingAnswers, routineType, trainingDays: enabledDays, weeklyFrequency: String(Math.max(3, enabledDays.length)) });
+    merged.training.selectedDay = Math.max(0, merged.training.weeklyPlan.findIndex(day => day.enabled));
+    const nutritionTargets = { ...calculateNutritionTargets(merged.profile, { ...defaultAnswers, ...saved.onboardingAnswers }), ...merged.nutrition.settings };
+    merged.nutrition.weeklyPlan = buildNutritionWeek(nutritionTargets, { ...defaultAnswers, ...saved.onboardingAnswers, mealCount: String(merged.nutrition.settings.count || 4) });
+    merged.nutrition.selectedDay = Math.min(6, Math.max(0, Number(merged.nutrition.selectedDay) || 0));
+  }
   if (!Array.isArray(merged.training.weeklyPlan) || merged.training.weeklyPlan.length !== 7) merged.training.weeklyPlan = fresh.training.weeklyPlan;
   if (!Array.isArray(merged.training.history)) merged.training.history = [];
   if (!Array.isArray(merged.nutrition.weeklyPlan) || merged.nutrition.weeklyPlan.length !== 7) merged.nutrition.weeklyPlan = fresh.nutrition.weeklyPlan;
@@ -106,6 +115,7 @@ export function migrateState(saved) {
   if (!Array.isArray(merged.arena.deck)) merged.arena.deck = fresh.arena.deck;
   if (!Array.isArray(merged.arena.skills)) merged.arena.skills = fresh.arena.skills;
   if (!Array.isArray(merged.arena.history)) merged.arena.history = [];
+  if (merged.arena.battle && !['active', 'victory', 'defeat'].includes(merged.arena.battle.status)) merged.arena.battle = null;
   if (!saved.daily?.dateKey) merged.daily.dateKey = '';
   merged.version = VERSION;
   return merged;

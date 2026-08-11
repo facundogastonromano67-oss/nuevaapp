@@ -8,14 +8,12 @@ export const habitCatalog = [
   ['Disciplina','wake','⏰','Levantarse al primer aviso','1 vez'],['Disciplina','cold','🚿','Ducha consciente','1 vez'],['Disciplina','review','📊','Revisar progreso','5 min'],['Disciplina','promise','🛡️','Cumplir promesa diaria','1 promesa'],
 ].map(([category,id,emoji,name,target])=>({category,id,emoji,name,target}));
 
-const muscleImages={
-  Pecho:'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?auto=format&fit=crop&w=900&q=80',
-  Espalda:'https://images.unsplash.com/photo-1534367507873-d2d7e24c797f?auto=format&fit=crop&w=900&q=80',
-  Piernas:'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?auto=format&fit=crop&w=900&q=80',
-  Hombros:'https://images.unsplash.com/photo-1532029837206-abbe2b7620e3?auto=format&fit=crop&w=900&q=80',
-  Brazos:'https://images.unsplash.com/photo-1584466977773-e625c37cdd50?auto=format&fit=crop&w=900&q=80',
-  Core:'https://images.unsplash.com/photo-1566241142559-40e1dab266c6?auto=format&fit=crop&w=900&q=80',
-  Cardio:'https://images.unsplash.com/photo-1538805060514-97d9cc17730c?auto=format&fit=crop&w=900&q=80',
+const muscleVisuals={Pecho:['#27dbe0','↔'],Espalda:['#438cff','↙'],Piernas:['#ff685f','↕'],Hombros:['#a77cff','↑'],Brazos:['#ffb44f','⌁'],Core:['#55df9c','◎'],Cardio:['#f06b9b','➜']};
+const exerciseArt=(name,muscle)=>{
+  const [color,cue]=muscleVisuals[muscle]||['#31e7e4','•'];
+  const safeName=name.replace(/[&<>"']/g,'');
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 560"><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#07111f"/><stop offset="1" stop-color="#10243a"/></linearGradient><radialGradient id="glow"><stop stop-color="${color}" stop-opacity=".5"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></radialGradient></defs><rect width="900" height="560" fill="url(#bg)"/><circle cx="665" cy="255" r="210" fill="url(#glow)"/><g fill="none" stroke="#b9d2e6" stroke-width="18" stroke-linecap="round"><circle cx="665" cy="110" r="42"/><path d="M665 154v150M665 205l-105 74M665 205l105 74M665 304l-78 142M665 304l78 142"/></g><circle cx="665" cy="235" r="82" fill="none" stroke="${color}" stroke-width="11" stroke-dasharray="13 15"/><text x="75" y="105" fill="${color}" font-family="Arial" font-size="24" letter-spacing="5">${muscle.toUpperCase()}</text><text x="75" y="230" fill="#f4f8fb" font-family="Arial" font-size="54" font-weight="700">${safeName}</text><text x="75" y="305" fill="#7892a8" font-family="Arial" font-size="24">GUÍA VISUAL DEL MOVIMIENTO</text><text x="75" y="455" fill="${color}" font-family="Arial" font-size="104" font-weight="700">${cue}</text></svg>`;
+  return`data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
 };
 
 export const exerciseCatalog = [
@@ -26,7 +24,7 @@ export const exerciseCatalog = [
   ['Brazos','barbell-curl','Curl con barra','isolation',12],['Brazos','hammer-curl','Curl martillo','isolation',12],['Brazos','triceps-pushdown','Extensión de tríceps','isolation',12],['Brazos','skull-crusher','Press francés','isolation',10],['Brazos','dips','Fondos','compound',10],
   ['Core','plank','Plancha frontal','core',45],['Core','dead-bug','Dead bug','core',12],['Core','cable-crunch','Crunch en polea','core',15],['Core','hanging-knee','Elevación de rodillas','core',12],
   ['Cardio','treadmill','Cinta o caminata','cardio',20],['Cardio','bike','Bicicleta','cardio',20],['Cardio','rowing','Remo ergómetro','cardio',15],
-].map(([muscle,id,name,type,defaultReps])=>({muscle,id,name,type,defaultReps,img:muscleImages[muscle],tech:`Técnica controlada para ${name.toLowerCase()}; detené la serie si aparece dolor.`}));
+].map(([muscle,id,name,type,defaultReps])=>({muscle,id,name,type,defaultReps,img:exerciseArt(name,muscle),tech:`Técnica controlada para ${name.toLowerCase()}; detené la serie si aparece dolor.`}));
 
 export const foodCatalog = [
   ['Proteínas','egg','🥚','Huevo','unidad',1,70,6,0.5,5],['Proteínas','egg-white','🍳','Clara de huevo','unidad',1,17,3.6,0.2,0],['Proteínas','chicken','🍗','Pechuga de pollo','g',100,165,31,0,3.6],['Proteínas','beef','🥩','Carne vacuna magra','g',100,200,27,0,10],['Proteínas','tuna','🐟','Atún al natural','g',100,116,26,0,1],['Proteínas','salmon','🐟','Salmón','g',100,208,20,0,13],['Proteínas','turkey','🍗','Pavo','g',100,135,29,0,1],['Proteínas','tofu','🧊','Tofu','g',100,144,17,3,9],['Proteínas','lentils','🫘','Lentejas cocidas','g',100,116,9,20,0.4],
@@ -38,6 +36,23 @@ export const foodCatalog = [
 ].map(([category,id,emoji,name,unit,baseAmount,kcal,p,c,f])=>({category,id,emoji,name,unit,baseAmount,kcal,p,c,f}));
 
 export const catalogById=(catalog,id)=>catalog.find(item=>item.id===id);
+
+export const mealPresetCatalog = [
+  {id:'oat-protein',group:'Desayuno / Merienda',allowedSlots:['Desayuno','Merienda','Colación'],emoji:'🥣',name:'Avena proteica con banana',foods:[['oats',50],['greek-yogurt',200],['banana',1],['whey',1]],steps:'Mezclá la avena con el yogur, incorporá la proteína y terminá con la banana en rodajas.',img:'https://images.unsplash.com/photo-1517673132405-a56a62b18caf?auto=format&fit=crop&w=900&q=80'},
+  {id:'egg-toast',group:'Desayuno / Merienda',allowedSlots:['Desayuno','Merienda'],emoji:'🍳',name:'Tostadas con huevos revueltos',foods:[['egg',2],['bread',2],['tomato',100]],steps:'Tostá el pan, cociná los huevos revueltos a fuego bajo y serví con tomate.',img:'https://images.unsplash.com/photo-1525351484163-7529414344d8?auto=format&fit=crop&w=900&q=80'},
+  {id:'yogurt-berries',group:'Desayuno / Merienda',allowedSlots:['Desayuno','Merienda','Colación'],emoji:'🫐',name:'Yogur con frutos rojos',foods:[['greek-yogurt',250],['berries',100],['oats',30],['almonds',15]],steps:'Colocá el yogur en un bowl y agregá avena, frutos rojos y almendras.',img:'https://images.unsplash.com/photo-1511690656952-34342bb7c2f2?auto=format&fit=crop&w=900&q=80'},
+  {id:'protein-smoothie',group:'Desayuno / Merienda',allowedSlots:['Desayuno','Merienda','Colación'],emoji:'🥤',name:'Licuado proteico de banana',foods:[['milk',250],['banana',1],['whey',1],['oats',30]],steps:'Licuá la leche, la banana, la proteína y la avena hasta obtener una textura uniforme.',img:'https://images.unsplash.com/photo-1553530666-ba11a7da3888?auto=format&fit=crop&w=900&q=80'},
+  {id:'avocado-egg-toast',group:'Desayuno / Merienda',allowedSlots:['Desayuno','Merienda'],emoji:'🥑',name:'Tostadas con palta y huevo',foods:[['bread',2],['egg',2],['avocado',60]],steps:'Tostá el pan, pisá la palta y terminá con los huevos cocidos a gusto.',img:'https://images.unsplash.com/photo-1525351484163-7529414344d8?auto=format&fit=crop&w=900&q=80'},
+  {id:'fruit-yogurt',group:'Desayuno / Merienda',allowedSlots:['Merienda','Colación'],emoji:'🍎',name:'Fruta con yogur',foods:[['apple',1],['greek-yogurt',200],['peanuts',15]],steps:'Cortá la fruta y servila con el yogur y el maní por encima.',img:'https://images.unsplash.com/photo-1490474418585-ba9bad8fd0ea?auto=format&fit=crop&w=900&q=80'},
+  {id:'chicken-rice',group:'Almuerzo / Cena',allowedSlots:['Almuerzo','Cena'],emoji:'🍛',name:'Bowl de pollo y arroz',foods:[['chicken',160],['rice',200],['broccoli',100],['olive-oil',.5]],steps:'Cociná el arroz, dorá el pollo y salteá el brócoli. Serví todo con aceite de oliva.',img:'https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=900&q=80'},
+  {id:'beef-potato',group:'Almuerzo / Cena',allowedSlots:['Almuerzo','Cena'],emoji:'🥩',name:'Carne magra con papa',foods:[['beef',160],['potato',250],['greens',100],['olive-oil',.5]],steps:'Horneá la papa, cociná la carne a punto y acompañá con hojas verdes y aceite.',img:'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=900&q=80'},
+  {id:'salmon-sweet-potato',group:'Almuerzo / Cena',allowedSlots:['Almuerzo','Cena'],emoji:'🐟',name:'Salmón con batata',foods:[['salmon',160],['sweet-potato',250],['greens',100]],steps:'Horneá la batata durante 30 minutos y el salmón durante 10 a 12 minutos. Serví con hojas verdes.',img:'https://images.unsplash.com/photo-1467003909585-2f8a72700288?auto=format&fit=crop&w=900&q=80'},
+  {id:'chicken-pasta',group:'Almuerzo / Cena',allowedSlots:['Almuerzo','Cena'],emoji:'🍝',name:'Pasta con pollo y vegetales',foods:[['pasta',200],['chicken',140],['tomato',100],['carrot',100]],steps:'Cociná la pasta, dorá el pollo y salteá tomate y zanahoria antes de combinar.',img:'https://images.unsplash.com/photo-1473093295043-cdd812d0e601?auto=format&fit=crop&w=900&q=80'},
+  {id:'tuna-rice',group:'Almuerzo / Cena',allowedSlots:['Almuerzo','Cena'],emoji:'🥗',name:'Ensalada de atún y arroz',foods:[['tuna',140],['rice',180],['tomato',100],['greens',100],['olive-oil',.5]],steps:'Cociná y enfriá el arroz. Mezclalo con atún, tomate, hojas verdes y aceite.',img:'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=900&q=80'},
+  {id:'lentil-quinoa',group:'Almuerzo / Cena',allowedSlots:['Almuerzo','Cena'],emoji:'🫘',name:'Bowl de lentejas y quinoa',foods:[['lentils',180],['quinoa',160],['pumpkin',150],['olive-oil',.5]],steps:'Cociná la quinoa y la calabaza. Sumá las lentejas calientes y terminá con aceite.',img:'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=900&q=80'},
+];
+
+export const mealPresetsForSlot=slot=>mealPresetCatalog.filter(preset=>preset.allowedSlots.includes(slot));
 
 export function groupedOptions(catalog,groupKey,selected=''){
   const groups=[...new Set(catalog.map(item=>item[groupKey]))];
