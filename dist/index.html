@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#050914">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icon.svg">
+  <link rel="stylesheet" href="./src/styles.css">
+  <link rel="stylesheet" href="./src/updates.css">
+  <title>SYSTEM // FACU</title>
+</head>
+<body>
+  <div id="app"><div class="boot-fallback">Iniciando SYSTEM…</div></div>
+  <script>
+    if ('serviceWorker' in navigator && location.protocol.startsWith('http') && !localStorage.getItem('facu-sw-migration-v3')) {
+      localStorage.setItem('facu-sw-migration-v3', '1');
+      navigator.serviceWorker.getRegistrations().then(items => Promise.all(items.map(item => item.unregister())).then(() => { if (items.length) location.reload(); }));
+    }
+  </script>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
