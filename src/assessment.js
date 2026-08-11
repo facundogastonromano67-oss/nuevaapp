@@ -42,8 +42,15 @@ export function answersFromForm(form) {
 }
 
 export function assessmentIsComplete(answers) {
-  const allAnswered = assessmentQuestions.every(question => question.multi
-    ? Array.isArray(answers[question.id]) && answers[question.id].length > 0
-    : Boolean(answers[question.id]));
-  return allAnswered && answers.trainingDays.length >= Number(answers.weeklyFrequency);
+  return validateAssessment(answers).valid;
+}
+
+export function validateAssessment(answers) {
+  const missing = assessmentQuestions.filter(question => question.multi
+    ? !Array.isArray(answers[question.id]) || answers[question.id].length === 0
+    : !answers[question.id]);
+  const selectedDays = Array.isArray(answers.trainingDays) ? answers.trainingDays.length : 0;
+  const weeklyFrequency = Number(answers.weeklyFrequency) || 0;
+  const dayMismatch = weeklyFrequency > 0 && selectedDays < weeklyFrequency;
+  return { valid: missing.length === 0 && !dayMismatch, missing, selectedDays, weeklyFrequency, dayMismatch };
 }

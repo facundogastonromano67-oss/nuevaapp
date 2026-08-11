@@ -1,6 +1,6 @@
 import { getState, setState, reset, exportBackup, importBackup } from './store.js';
 import { academy, minigames } from './data.js';
-import { assessmentQuestions, answersFromForm, assessmentIsComplete } from './assessment.js';
+import { assessmentQuestions, answersFromForm, assessmentIsComplete, validateAssessment } from './assessment.js';
 import { buildNutritionWeek, buildTrainingPlan, calculateNutritionTargets, combat, generateMissions, levelFromXp, rank, scoreAssessment, stageForDay, weeklySummary } from './engines.js';
 
 const app = () => document.querySelector('#app');
@@ -155,7 +155,32 @@ function startGame(index) {
   document.querySelectorAll('[data-number]').forEach(button => button.onclick = () => { const ms = Math.round(performance.now() - start), ok = Number(button.dataset.number) === target; if (ok) mutate(state => state.coins += ms < 1200 ? 12 : 6, { type: 'arena', label: `${name}: ${ms} ms` }); document.querySelector('#modal').innerHTML = ''; toast(ok ? `Correcto · ${ms} ms` : 'Objetivo fallado'); });
 }
 
+function guardAssessmentSubmit(event) {
+  const form = event.currentTarget;
+  const validation = validateAssessment(answersFromForm(form));
+  form.querySelectorAll('.assessment-card.invalid').forEach(card => card.classList.remove('invalid'));
+  form.querySelector('.assessment-error')?.remove();
+  if (validation.valid) return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  const invalidIds = validation.missing.map(question => question.id);
+  if (validation.dayMismatch && !invalidIds.includes('trainingDays')) invalidIds.push('trainingDays', 'weeklyFrequency');
+  invalidIds.forEach(id => form.querySelector(`[data-question="${id}"]`)?.classList.add('invalid'));
+  const firstMissing = validation.missing[0];
+  const message = validation.dayMismatch
+    ? `Elegiste ${validation.selectedDays} días, pero seleccionaste ${validation.weeklyFrequency} sesiones semanales.`
+    : `Falta responder la pregunta ${assessmentQuestions.indexOf(firstMissing) + 1}: ${firstMissing.text}`;
+  const notice = document.createElement('div');
+  notice.className = 'assessment-error';
+  notice.innerHTML = `<b>REVISÁ ESTA RESPUESTA</b><span>${esc(message)}</span>`;
+  form.querySelector('.assessment-submit').before(notice);
+  const firstInvalid = form.querySelector('.assessment-card.invalid');
+  firstInvalid?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  toast(message);
+}
+
 function bind() {
+  document.querySelector('#assessment')?.addEventListener('submit', guardAssessmentSubmit, true);
   document.querySelectorAll('[data-route]').forEach(button => button.onclick = () => { mutate(state => state.ui.route = button.dataset.route); window.scrollTo(0, 0); });
   document.querySelectorAll('[data-more]').forEach(button => button.onclick = () => { mutate(state => { state.ui.route = 'more'; state.ui.more = button.dataset.more; }); window.scrollTo(0, 0); });
   document.querySelector('[data-on-next]')?.addEventListener('click', () => { sessionStorage.setItem('onStep', 1); render(); });
