@@ -1,9 +1,9 @@
 import { attributes, combatSkills } from './data.js';
-import { buildNutritionWeek, buildTrainingPlan, calculateHardcorePenalty, calculateNutritionTargets, createDailyAssignment, localDateKey, transactXp } from './engines.js';
+import { buildHabitSchedule, buildNutritionWeek, buildTrainingPlan, calculateHardcorePenalty, calculateNutritionTargets, createDailyAssignment, generateDailyHabits, localDateKey, stageForDay, transactXp } from './engines.js';
 import { catalogById, exerciseCatalog, mealPresetCatalog } from './catalogs.js';
 
 const KEY = 'facu-owner-v1';
-const VERSION = 7;
+const VERSION = 8;
 const defaultAnswers = {
   sex: 'male', activity: 'light', goal: 'performance', routineType: 'full-body',
   planMode: 'normal',
@@ -41,11 +41,12 @@ export const initialState = () => {
     plan: {
       mode: 'normal', status: 'draft', locked: false, generatedAt: 0, acceptedAt: 0,
       rewards: { habit: 25, meal: 20, training: 180 },
-      penaltyHistory: [],
+      penaltyHistory: [], habitSchedule: [], habitScheduleStage: '',
     },
     coins: 240,
     streak: 6,
-    g30: { day: 9, goal: 'Construir una versión más fuerte, enfocada y consistente' },
+    g30: { day: 1, goal: 'Construir una versión más fuerte, enfocada y consistente' },
+    notepad: { content: '', updatedAt: 0 },
     notes: [{ id: 'n1', title: 'Primera nota', body: 'Usá este cuaderno para guardar ideas, sensaciones, proyectos o cosas que no querés olvidar.', updatedAt: Date.now(), pinned: true }],
     tasks: [],
     habits: habitSeed,
@@ -65,10 +66,11 @@ export const initialState = () => {
     academy: { completed: [], quizScores: {} },
     arena: { rating: 1000, wins: 0, losses: 0, deck: [1, 2, 3, 4, 5], skills: combatSkills, history: [], battle: null, selectedMode: null },
     history: [],
-    checkin: { sleep: 7, energy: 4, mood: 4, note: '' },
     daily: { dateKey: '', dayName: '', assignedAt: 0, welcomeSeenDate: '', noticeSeenDate: '', recalibrations: 0, hasTraining: false, trainingTitle: '' },
     ui: { route: 'general', more: 'g30' },
   };
+  state.plan.habitSchedule = buildHabitSchedule(state);
+  state.plan.habitScheduleStage = stageForDay(state.g30.day);
   const assignment = createDailyAssignment(state, new Date());
   state.missions = assignment.missions;
   state.habits = assignment.habits;
@@ -90,13 +92,14 @@ export function migrateState(saved) {
     nutrition: { ...fresh.nutrition, ...saved.nutrition, settings: { ...fresh.nutrition.settings, ...saved.nutrition?.settings }, preferences: { ...fresh.nutrition.preferences, ...saved.nutrition?.preferences } },
     academy: { ...fresh.academy, ...saved.academy },
     arena: { ...fresh.arena, ...saved.arena },
-    checkin: { ...fresh.checkin, ...saved.checkin },
+    notepad: { ...fresh.notepad, ...saved.notepad },
     daily: { ...fresh.daily, ...saved.daily },
     ui: { ...fresh.ui, ...saved.ui },
   };
   for (const key of ['tasks', 'habits', 'skills', 'missions', 'history', 'notes']) if (!Array.isArray(merged[key])) merged[key] = fresh[key];
   if (!Array.isArray(merged.xpLedger)) merged.xpLedger = [];
   if (!Array.isArray(merged.plan.penaltyHistory)) merged.plan.penaltyHistory = [];
+  if (!merged.notepad || typeof merged.notepad !== 'object') merged.notepad = { ...fresh.notepad };
   if (oldVersion < 2) {
     const taskNotes = Array.isArray(saved.tasks) ? saved.tasks.map(task => ({ id: `legacy-${task.id}`, title: task.title || 'Nota importada', body: [task.category, task.date].filter(Boolean).join(' · '), updatedAt: Date.now(), pinned: false })) : [];
     merged.notes = [...taskNotes, ...fresh.notes];
@@ -122,6 +125,19 @@ export function migrateState(saved) {
     merged.nutrition.weeklyPlan?.forEach(day=>day.meals?.forEach(meal=>{const preset=catalogById(mealPresetCatalog,meal.presetId)||mealPresetCatalog.find(item=>item.name===meal.name);if(preset){meal.img=preset.img;meal.visualIndex=preset.visualIndex;meal.presetId=preset.id;meal.mealGroup=preset.group;}}));
   }
   if (oldVersion < 7 && merged.onboarded) merged.plan = { ...merged.plan, mode: 'normal', status: 'active', locked: false, acceptedAt: Date.now() };
+  if (oldVersion < 8) {
+    const legacyNotes = Array.isArray(merged.notes) ? merged.notes.map(note => [note.title, note.body].filter(Boolean).join('\n')).filter(Boolean) : [];
+    const legacyCheckin = saved.checkin?.note?.trim();
+    if (!merged.notepad.content) merged.notepad = { content: [...legacyNotes, legacyCheckin].filter(Boolean).join('\n\n---\n\n'), updatedAt: Date.now() };
+    merged.plan.habitSchedule = buildHabitSchedule(merged);
+    merged.plan.habitScheduleStage = stageForDay(merged.g30.day);
+    if (merged.onboarded) merged.habits = generateDailyHabits(merged, new Date());
+  }
+  delete merged.checkin;
+  if (!Array.isArray(merged.plan.habitSchedule) || merged.plan.habitSchedule.length !== 7) {
+    merged.plan.habitSchedule = buildHabitSchedule(merged);
+    merged.plan.habitScheduleStage = stageForDay(merged.g30.day);
+  }
   if (!Array.isArray(merged.training.weeklyPlan) || merged.training.weeklyPlan.length !== 7) merged.training.weeklyPlan = fresh.training.weeklyPlan;
   if (!Array.isArray(merged.training.history)) merged.training.history = [];
   if (!Array.isArray(merged.nutrition.weeklyPlan) || merged.nutrition.weeklyPlan.length !== 7) merged.nutrition.weeklyPlan = fresh.nutrition.weeklyPlan;
@@ -161,6 +177,12 @@ export function ensureDailyRollover(now = new Date(), force = false) {
         current.history.unshift({id:`penalty-${previousDateKey}`,at:now.getTime(),type:'penalty',label:'Penalización del plan Hardcore',detail:`${penalty.items.length} incumplimientos · ${penalty.total} XP evaluados`,xp:transaction.delta});
       }
     }
+    if(previousDateKey!==today&&current.onboarded)current.g30.day=Math.min(30,(Number(current.g30.day)||1)+1);
+    const habitStage=stageForDay(current.g30.day);
+    if(!Array.isArray(current.plan.habitSchedule)||current.plan.habitSchedule.length!==7||current.plan.habitScheduleStage!==habitStage){
+      current.plan.habitSchedule=buildHabitSchedule(current);
+      current.plan.habitScheduleStage=habitStage;
+    }
     const assignment = createDailyAssignment(current, now);
     current.missions = assignment.missions;
     current.habits = assignment.habits;
@@ -170,7 +192,6 @@ export function ensureDailyRollover(now = new Date(), force = false) {
       hasTraining: assignment.hasTraining, trainingTitle: assignment.trainingTitle,
     };
     current.nutrition.done = [];
-    current.checkin = { ...current.checkin, note: '' };
     return current;
   });
   return true;

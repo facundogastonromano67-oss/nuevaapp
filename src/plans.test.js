@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { assessmentQuestions } from './assessment.js';
-import { buildIntellectAssessment, buildNutritionWeek, buildTrainingDay, buildTrainingPlan, calculateFoodNutrition, calculateHardcorePenalty, calculateMealNutrition, calculateNutritionTargets, createArenaBattle, createDailyAssignment, createWorkoutExercise, exerciseRestSeconds, formatMealIngredients, generateDailyHabits, generateDailyMissions, localDateKey, resolveArenaTurn, scoreIntellectAssessment, transactXp } from './engines.js';
+import { buildHabitSchedule, buildIntellectAssessment, buildNutritionWeek, buildTrainingDay, buildTrainingPlan, calculateFoodNutrition, calculateHardcorePenalty, calculateMealNutrition, calculateNutritionTargets, createArenaBattle, createDailyAssignment, createWorkoutExercise, exerciseRestSeconds, formatMealIngredients, generateDailyHabits, generateDailyMissions, localDateKey, resolveArenaTurn, scoreIntellectAssessment, transactXp } from './engines.js';
 import { exerciseCatalog, foodCatalog, habitCatalog, mealPresetCatalog } from './catalogs.js';
 import { intellectRoutes } from './data.js';
 
@@ -116,7 +116,17 @@ describe('asignación diaria', () => {
   it('usa como base los hábitos elegidos durante la evaluación', () => {
     const selectedState = { ...dailyState, onboardingAnswers: { dailyHabits: ['water', 'reading', 'journal'] } };
     const assignment = createDailyAssignment(selectedState, tuesday);
-    expect(assignment.habits.filter(habit => !habit.custom).map(habit => habit.catalogId)).toEqual(['water', 'reading', 'journal']);
+    expect(assignment.habits.filter(habit => !habit.custom).map(habit => habit.catalogId)).toContain('water');
+    expect(assignment.habits.filter(habit => !habit.custom).length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('mantiene hábitos base y rota el resto según día y etapa G30', () => {
+    const selectedState = { ...dailyState, g30: { day: 9 }, onboardingAnswers: { dailyHabits: ['sleep', 'water', 'steps', 'focus', 'reading', 'vegetables'] } };
+    const schedule = buildHabitSchedule(selectedState);
+    expect(schedule).toHaveLength(7);
+    expect(schedule.every(day => day.habitIds.includes('sleep') && day.habitIds.includes('water'))).toBe(true);
+    expect(new Set(schedule.map(day => day.habitIds.join('|'))).size).toBeGreaterThan(1);
+    expect(schedule.every(day => day.stage === 'Construcción')).toBe(true);
   });
 });
 

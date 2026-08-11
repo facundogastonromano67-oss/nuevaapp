@@ -134,24 +134,50 @@ export function generateDailyMissions(state, date = new Date(), variant = 0) {
   return selected.map((mission, index) => ({ id: `mission-${dateKey}-${variant}-${index}`, dateKey, ...mission, status: 'open' }));
 }
 
+const habitWeekDays = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+const habitAnchors = new Set(['sleep', 'water', 'protein']);
+const habitSuggestions = {
+  'Diagnóstico y orden': ['plan-day', 'priorities', 'journal', 'tidy'],
+  Construcción: ['focus', 'learning', 'no-phone', 'project'],
+  Intensificación: ['focus', 'promise', 'review', 'mobility'],
+  Consolidación: ['review', 'journal', 'conversation', 'gratitude'],
+};
+
+export function buildHabitSchedule(state = {}) {
+  const selectedAnswers = Array.isArray(state.onboardingAnswers?.dailyHabits) ? state.onboardingAnswers.dailyHabits : [];
+  const selected = [...new Set(selectedAnswers.filter(id => id !== 'strength' && catalogById(habitCatalog, id)))];
+  const chosen = selected.length ? selected : ['sleep', 'water', 'steps', 'focus', 'reading', 'vegetables'];
+  const anchors = chosen.filter(id => habitAnchors.has(id)).slice(0, 2);
+  const rotating = chosen.filter(id => !anchors.includes(id));
+  const stage = stageForDay(Number(state.g30?.day) || 1);
+  const suggestions = habitSuggestions[stage] || habitSuggestions.Construcción;
+  let previousSuggestion = '';
+  return habitWeekDays.map((day, dayIndex) => {
+    const planned = [...anchors];
+    const rotatingCount = Math.min(2, rotating.length);
+    for (let offset = 0; offset < rotatingCount; offset++) planned.push(rotating[(dayIndex * rotatingCount + offset) % rotating.length]);
+    const orderedSuggestions = suggestions.map((_, index) => suggestions[(dayIndex + index) % suggestions.length]);
+    const suggestion = orderedSuggestions.find(id => !planned.includes(id) && id !== previousSuggestion) || orderedSuggestions.find(id => !planned.includes(id)) || orderedSuggestions[0];
+    previousSuggestion = suggestion;
+    planned.push(suggestion);
+    return { day, stage, habitIds: [...new Set(planned)].filter(id => catalogById(habitCatalog, id)) };
+  });
+}
+
 export function generateDailyHabits(state, date = new Date()) {
-  const dateKey = localDateKey(date), seed = dateSeed(dateKey);
-  const groups = [
-    ['steps', 'cardio', 'mobility', 'posture'],
-    ['focus', 'meditation', 'reading', 'learning', 'journal'],
-    ['priorities', 'plan-day', 'project', 'no-phone', 'tidy'],
-    ['vegetables', 'fruit', 'protein', 'meal-prep', 'conversation', 'listen'],
-  ];
-  const selectedHabitIds=Array.isArray(state.onboardingAnswers?.dailyHabits)?state.onboardingAnswers.dailyHabits.filter(id=>id!=='strength'):[];
-  const catalogIds = selectedHabitIds.length ? [...new Set(selectedHabitIds)] : ['sleep', 'water', ...groups.map((group, index) => group[(seed + index * 2) % group.length])];
+  const dateKey = localDateKey(date), dayName = localDayNames[date.getDay()];
+  const schedule = buildHabitSchedule(state);
+  const scheduledDay = schedule.find(day => day.day === dayName);
+  const catalogIds = scheduledDay?.habitIds || [];
+  const selectedIds = new Set(Array.isArray(state.onboardingAnswers?.dailyHabits) ? state.onboardingAnswers.dailyHabits : []);
   const generated = catalogIds.map(id => catalogById(habitCatalog, id)).filter(Boolean).map(item => ({
     id: `daily-${dateKey}-${item.id}`, catalogId: item.id, category: item.category, emoji: item.emoji,
-    name: item.name, target: item.target, baseline: 'Asignado hoy', active: true, done: false, custom: false, daily: true, dateKey,
+    name: item.name, target: item.target, baseline: habitAnchors.has(item.id) && selectedIds.has(item.id) ? 'Base diaria' : selectedIds.has(item.id) ? 'Rotación semanal' : `Sistema · ${scheduledDay?.stage || stageForDay(state.g30?.day || 1)}`, active: true, done: false, custom: false, daily: true, dateKey,
   }));
   const training = trainingForDate(state, date);
   if (training) generated.push({
     id: `daily-${dateKey}-training`, catalogId: 'daily-training', category: 'Entrenamiento', emoji: '🏋️',
-    name: 'Completar rutina de entrenamiento', target: training.title, baseline: 'Asignado hoy', active: true, done: false, custom: false, daily: true, dateKey,
+    name: 'Completar rutina de entrenamiento', target: training.title, baseline: 'Rutina programada', active: true, done: false, custom: false, daily: true, dateKey,
   });
   const custom = (state.habits || []).filter(habit => habit.custom).map(habit => ({ ...habit, done: false, daily: false, dateKey }));
   return [...generated, ...custom];

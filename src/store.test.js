@@ -26,6 +26,9 @@ describe('migración defensiva del estado', () => {
     expect(migrated.training.exercises.length).toBeGreaterThan(0);
     expect(migrated.nutrition.meals.length).toBeGreaterThan(0);
     expect(migrated.arena.skills.length).toBe(28);
+    expect(migrated.notepad.content).toContain('Primera nota');
+    expect(migrated.checkin).toBeUndefined();
+    expect(migrated.plan.habitSchedule).toHaveLength(7);
   });
 
   it('repara colecciones corruptas sin borrar el perfil', () => {
