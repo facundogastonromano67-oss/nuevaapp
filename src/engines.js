@@ -1,4 +1,4 @@
-import { exerciseCatalog, foodCatalog, catalogById } from './catalogs.js';
+import { exerciseCatalog, foodCatalog, habitCatalog, catalogById } from './catalogs.js';
 import { intellectAdaptiveQuestions, intellectCoreQuestions, intellectRoutes } from './data.js';
 
 export function buildIntellectAssessment(preference = 'logic') {
@@ -42,14 +42,90 @@ export function rank(score) {
   return score >= 90 ? 'Trascendente' : score >= 75 ? 'Élite' : score >= 60 ? 'Avanzado' : score >= 40 ? 'Competente' : score >= 20 ? 'Aprendiz' : 'Novato';
 }
 
-export function generateMissions(state) {
-  const weak = [...state.skills].sort((a, b) => a.score - b.score).slice(0, 3);
-  const templates = [
-    skill => ({ title: `Entrená ${skill.name}`, detail: `15 minutos de práctica deliberada · evidencia para ${skill.name}`, xp: 80 }),
-    skill => ({ title: 'Bloque sin distracciones', detail: `25 minutos sobre tu prioridad · refuerza ${skill.name}`, xp: 70 }),
-    skill => ({ title: 'Cierre del Sistema', detail: `Registrá un aprendizaje y el próximo paso · refuerza ${skill.name}`, xp: 60 }),
+const localDayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+const padDatePart = value => String(value).padStart(2, '0');
+const dateSeed = key => [...key].reduce((total, character) => (total * 31 + character.charCodeAt(0)) >>> 0, 17);
+
+export function localDateKey(date = new Date()) {
+  return `${date.getFullYear()}-${padDatePart(date.getMonth() + 1)}-${padDatePart(date.getDate())}`;
+}
+
+export function trainingForDate(state, date = new Date()) {
+  const dayName = localDayNames[date.getDay()];
+  return state.training?.weeklyPlan?.find(day => day.day === dayName && day.enabled) || null;
+}
+
+export function generateDailyMissions(state, date = new Date(), variant = 0) {
+  const dateKey = localDateKey(date), seed = dateSeed(dateKey) + variant * 11;
+  const weak = [...(state.skills || [])].sort((a, b) => a.score - b.score).slice(0, 5);
+  const primarySkill = weak[seed % Math.max(1, weak.length)] || { name: 'Foco profundo' };
+  const training = trainingForDate(state, date);
+  const cognitive = [
+    { title: `Bloque de foco: ${primarySkill.name}`, detail: `25 minutos sin interrupciones · evidencia para ${primarySkill.name}`, xp: 80, emoji: '🎯' },
+    { title: `Práctica deliberada: ${primarySkill.name}`, detail: `Elegí una dificultad concreta, practicá 20 minutos y registrá el resultado`, xp: 80, emoji: '🧠' },
+    { title: 'Resolver antes de consumir', detail: `Dedicá 20 minutos a producir una solución antes de buscar referencias`, xp: 75, emoji: '🧩' },
+    { title: 'Aprender y explicar', detail: `Estudiá una idea durante 15 minutos y explicala sin mirar`, xp: 75, emoji: '💡' },
+    { title: 'Plan de tres movimientos', detail: `Definí las tres acciones que más acercan tu objetivo de hoy`, xp: 70, emoji: '🗺️' },
+    { title: 'Memoria activa', detail: `Recordá cinco ideas de ayer y comprobá cuáles fueron precisas`, xp: 70, emoji: '🧠' },
+    { title: 'Decisión pendiente', detail: `Tomá una decisión postergada usando criterio, costo y próximo paso`, xp: 75, emoji: '⚖️' },
   ];
-  return weak.map((skill, index) => ({ id: crypto.randomUUID(), ...templates[index](skill), status: 'open' }));
+  const recovery = [
+    { title: 'Recuperación activa', detail: 'Caminá 25 minutos a ritmo cómodo y soltá tensión', xp: 65, emoji: '🚶' },
+    { title: 'Movilidad completa', detail: 'Realizá 15 minutos de movilidad de cadera, espalda y hombros', xp: 65, emoji: '🤸' },
+    { title: 'Base de energía', detail: 'Completá agua, proteína y dos porciones de vegetales', xp: 65, emoji: '🥗' },
+    { title: 'Descanso estratégico', detail: 'Prepará una hora de sueño sin pantallas ni trabajo pendiente', xp: 65, emoji: '🌙' },
+  ];
+  const closures = [
+    { title: 'Cierre del Sistema', detail: 'Registrá un aprendizaje y el próximo paso de mañana', xp: 60, emoji: '📓' },
+    { title: 'Orden de diez minutos', detail: 'Dejá listo el espacio que vas a usar mañana', xp: 55, emoji: '🧹' },
+    { title: 'Conversación intencional', detail: 'Tené una conversación sin teléfono y practicá escucha activa', xp: 60, emoji: '💬' },
+    { title: 'Preparación de comidas', detail: 'Dejá preparada al menos una comida o sus ingredientes', xp: 60, emoji: '🍱' },
+    { title: 'Revisión de progreso', detail: 'Anotá qué funcionó, qué frenó el día y qué vas a ajustar', xp: 60, emoji: '📈' },
+    { title: 'Bloque sin teléfono', detail: 'Protegé 45 minutos completos sin redes ni notificaciones', xp: 60, emoji: '📵' },
+    { title: 'Prioridad terminada', detail: 'Cerrá una tarea importante antes de abrir una nueva', xp: 65, emoji: '✅' },
+  ];
+  const selected = [
+    { ...cognitive[seed % cognitive.length], category: 'Intelecto' },
+    training
+      ? { title: `Completar ${training.title}`, detail: `${training.exercises.length} ejercicios · ${state.training.settings.duration} minutos programados`, xp: 100, emoji: '🏋️', category: 'Entrenamiento' }
+      : { ...recovery[(seed + 1) % recovery.length], category: 'Recuperación' },
+    { ...closures[(seed + 2) % closures.length], category: 'Vida diaria' },
+  ];
+  return selected.map((mission, index) => ({ id: `mission-${dateKey}-${variant}-${index}`, dateKey, ...mission, status: 'open' }));
+}
+
+export function generateDailyHabits(state, date = new Date()) {
+  const dateKey = localDateKey(date), seed = dateSeed(dateKey);
+  const groups = [
+    ['steps', 'cardio', 'mobility', 'posture'],
+    ['focus', 'meditation', 'reading', 'learning', 'journal'],
+    ['priorities', 'plan-day', 'project', 'no-phone', 'tidy'],
+    ['vegetables', 'fruit', 'protein', 'meal-prep', 'conversation', 'listen'],
+  ];
+  const catalogIds = ['sleep', 'water', ...groups.map((group, index) => group[(seed + index * 2) % group.length])];
+  const generated = catalogIds.map(id => catalogById(habitCatalog, id)).filter(Boolean).map(item => ({
+    id: `daily-${dateKey}-${item.id}`, catalogId: item.id, category: item.category, emoji: item.emoji,
+    name: item.name, target: item.target, baseline: 'Asignado hoy', active: true, done: false, custom: false, daily: true, dateKey,
+  }));
+  const training = trainingForDate(state, date);
+  if (training) generated.push({
+    id: `daily-${dateKey}-training`, catalogId: 'daily-training', category: 'Entrenamiento', emoji: '🏋️',
+    name: 'Completar rutina de entrenamiento', target: training.title, baseline: 'Asignado hoy', active: true, done: false, custom: false, daily: true, dateKey,
+  });
+  const custom = (state.habits || []).filter(habit => habit.custom).map(habit => ({ ...habit, done: false, daily: false, dateKey }));
+  return [...generated, ...custom];
+}
+
+export function createDailyAssignment(state, date = new Date(), variant = 0) {
+  const training = trainingForDate(state, date);
+  return {
+    dateKey: localDateKey(date), dayName: localDayNames[date.getDay()], hasTraining: Boolean(training),
+    trainingTitle: training?.title || 'Recuperación', missions: generateDailyMissions(state, date, variant), habits: generateDailyHabits(state, date),
+  };
+}
+
+export function generateMissions(state, date = new Date(), variant = 0) {
+  return generateDailyMissions(state, date, variant);
 }
 
 export function combat(playerPower, rating, roll = .5) {

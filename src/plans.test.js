@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { assessmentQuestions } from './assessment.js';
-import { buildIntellectAssessment, buildNutritionWeek, buildTrainingPlan, calculateFoodNutrition, calculateMealNutrition, calculateNutritionTargets, createWorkoutExercise, exerciseRestSeconds, scoreIntellectAssessment } from './engines.js';
+import { buildIntellectAssessment, buildNutritionWeek, buildTrainingPlan, calculateFoodNutrition, calculateMealNutrition, calculateNutritionTargets, createDailyAssignment, createWorkoutExercise, exerciseRestSeconds, generateDailyHabits, generateDailyMissions, localDateKey, scoreIntellectAssessment } from './engines.js';
 import { exerciseCatalog, foodCatalog, habitCatalog } from './catalogs.js';
 import { intellectRoutes } from './data.js';
 
@@ -50,6 +50,41 @@ describe('bibliotecas de personalización', () => {
     expect(exerciseRestSeconds('bench-press', 'strength')).toBe(180);
     expect(exerciseRestSeconds('lateral-raise', 'hypertrophy')).toBe(60);
     expect(createWorkoutExercise('bench-press', 'strength')).toMatchObject({ sets: 5, reps: 5, rest: 180 });
+  });
+});
+
+describe('asignación diaria', () => {
+  const dailyState = {
+    skills: [
+      { name: 'Foco profundo', score: 30 }, { name: 'Planificación', score: 35 }, { name: 'Memoria', score: 40 },
+    ],
+    habits: [{ id: 'custom-1', name: 'Mi hábito', target: '10 min', custom: true, done: true }],
+    training: {
+      settings: { duration: 50 },
+      weeklyPlan: [
+        { day: 'Lunes', enabled: true, title: 'Fuerza · Sesión 1', exercises: [{}, {}, {}] },
+        { day: 'Martes', enabled: false, title: 'Descanso', exercises: [] },
+      ],
+    },
+  };
+  const monday = new Date(2026, 7, 10, 12);
+  const tuesday = new Date(2026, 7, 11, 12);
+
+  it('cambia misiones y hábitos cuando cambia la fecha local', () => {
+    expect(localDateKey(monday)).toBe('2026-08-10');
+    expect(localDateKey(tuesday)).toBe('2026-08-11');
+    expect(generateDailyMissions(dailyState, monday).map(item => item.id)).not.toEqual(generateDailyMissions(dailyState, tuesday).map(item => item.id));
+    expect(generateDailyHabits(dailyState, monday).map(item => item.catalogId)).not.toEqual(generateDailyHabits(dailyState, tuesday).map(item => item.catalogId));
+  });
+
+  it('agrega la rutina sólo en días con entrenamiento y conserva hábitos personalizados', () => {
+    const trainingDay = createDailyAssignment(dailyState, monday);
+    const restDay = createDailyAssignment(dailyState, tuesday);
+    expect(trainingDay.hasTraining).toBe(true);
+    expect(trainingDay.habits.some(habit => habit.catalogId === 'daily-training')).toBe(true);
+    expect(restDay.hasTraining).toBe(false);
+    expect(restDay.habits.some(habit => habit.catalogId === 'daily-training')).toBe(false);
+    expect(trainingDay.habits.find(habit => habit.id === 'custom-1').done).toBe(false);
   });
 });
 

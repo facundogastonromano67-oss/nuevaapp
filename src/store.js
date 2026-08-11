@@ -1,8 +1,8 @@
 import { attributes, combatSkills } from './data.js';
-import { buildNutritionWeek, buildTrainingPlan, calculateNutritionTargets, generateMissions } from './engines.js';
+import { buildNutritionWeek, buildTrainingPlan, calculateNutritionTargets, createDailyAssignment, localDateKey } from './engines.js';
 
 const KEY = 'facu-owner-v1';
-const VERSION = 3;
+const VERSION = 4;
 const defaultAnswers = {
   sex: 'male', activity: 'light', goal: 'performance', routineType: 'full-body',
   trainingDays: ['Lunes', 'Miércoles', 'Viernes'], weeklyFrequency: '3', duration: '50',
@@ -57,9 +57,13 @@ export const initialState = () => {
     arena: { rating: 1000, wins: 0, losses: 0, deck: [1, 2, 3, 4, 5], skills: combatSkills, history: [] },
     history: [],
     checkin: { sleep: 7, energy: 4, mood: 4, note: '' },
+    daily: { dateKey: '', dayName: '', assignedAt: 0, welcomeSeenDate: '', noticeSeenDate: '', recalibrations: 0, hasTraining: false, trainingTitle: '' },
     ui: { route: 'general', more: 'g30' },
   };
-  state.missions = generateMissions(state);
+  const assignment = createDailyAssignment(state, new Date());
+  state.missions = assignment.missions;
+  state.habits = assignment.habits;
+  state.daily = { ...state.daily, dateKey: assignment.dateKey, dayName: assignment.dayName, assignedAt: Date.now(), hasTraining: assignment.hasTraining, trainingTitle: assignment.trainingTitle };
   return state;
 };
 
@@ -77,6 +81,7 @@ export function migrateState(saved) {
     academy: { ...fresh.academy, ...saved.academy },
     arena: { ...fresh.arena, ...saved.arena },
     checkin: { ...fresh.checkin, ...saved.checkin },
+    daily: { ...fresh.daily, ...saved.daily },
     ui: { ...fresh.ui, ...saved.ui },
   };
   for (const key of ['tasks', 'habits', 'skills', 'missions', 'history', 'notes']) if (!Array.isArray(merged[key])) merged[key] = fresh[key];
@@ -101,6 +106,7 @@ export function migrateState(saved) {
   if (!Array.isArray(merged.arena.deck)) merged.arena.deck = fresh.arena.deck;
   if (!Array.isArray(merged.arena.skills)) merged.arena.skills = fresh.arena.skills;
   if (!Array.isArray(merged.arena.history)) merged.arena.history = [];
+  if (!saved.daily?.dateKey) merged.daily.dateKey = '';
   merged.version = VERSION;
   return merged;
 }
@@ -113,6 +119,24 @@ export function setState(update) {
   state = update(structuredClone(state)) || state;
   localStorage.setItem(KEY, JSON.stringify(state));
   window.dispatchEvent(new Event('statechange'));
+}
+export function ensureDailyRollover(now = new Date(), force = false) {
+  const today = localDateKey(now);
+  if (!force && state.daily?.dateKey === today) return false;
+  setState(current => {
+    const assignment = createDailyAssignment(current, now);
+    current.missions = assignment.missions;
+    current.habits = assignment.habits;
+    current.daily = {
+      ...current.daily, dateKey: assignment.dateKey, dayName: assignment.dayName, assignedAt: now.getTime(),
+      welcomeSeenDate: '', noticeSeenDate: '', recalibrations: 0,
+      hasTraining: assignment.hasTraining, trainingTitle: assignment.trainingTitle,
+    };
+    current.nutrition.done = [];
+    current.checkin = { ...current.checkin, note: '' };
+    return current;
+  });
+  return true;
 }
 export function reset() { state = initialState(); localStorage.removeItem(KEY); location.reload(); }
 export function exportBackup() { return JSON.stringify(state, null, 2); }

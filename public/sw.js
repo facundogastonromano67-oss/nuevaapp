@@ -1,4 +1,4 @@
-const CACHE = 'facu-owner-v6';
+const CACHE = 'facu-owner-v7';
 const CORE = ['./', './index.html', './manifest.webmanifest', './icon.svg'];
 
 self.addEventListener('install', event => {

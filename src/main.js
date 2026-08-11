@@ -1,4 +1,5 @@
 import { render } from './views.js';
+import { ensureDailyRollover } from './store.js';
 
 const root = document.querySelector('#app');
 
@@ -32,11 +33,26 @@ function renderSafely() {
   try { render(); } catch (error) { showRecovery(error); }
 }
 
+ensureDailyRollover();
 root.innerHTML='<div class="boot"><span>SYSTEM</span><small>Sincronizando núcleo personal…</small></div>';
 setTimeout(renderSafely, 350);
 window.addEventListener('statechange', renderSafely);
 window.addEventListener('error', event => showRecovery(event.error || event.message));
 window.addEventListener('unhandledrejection', event => showRecovery(event.reason));
+
+let dailyRolloverTimer;
+function scheduleDailyRollover() {
+  clearTimeout(dailyRolloverTimer);
+  const now = new Date(), nextMidnight = new Date(now);
+  nextMidnight.setHours(24, 0, 0, 80);
+  dailyRolloverTimer = setTimeout(() => {
+    ensureDailyRollover(new Date(), true);
+    scheduleDailyRollover();
+  }, Math.max(1000, nextMidnight.getTime() - now.getTime()));
+}
+scheduleDailyRollover();
+document.addEventListener('visibilitychange', () => { if (!document.hidden) ensureDailyRollover(); });
+window.addEventListener('focus', () => ensureDailyRollover());
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   addEventListener('load', async () => {
