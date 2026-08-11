@@ -1,0 +1,1 @@
+{"name":"solo-leveling-facu-owner","private":true,"version":"1.0.0","type":"module","scripts":{"dev":"vite --base=./ --host 0.0.0.0 --port 5173","build":"vite build --base=./","preview":"vite preview --host 0.0.0.0 --port 4173","test":"vitest run"},"dependencies":{"@supabase/supabase-js":"^2.45.0"},"devDependencies":{"vite":"^6.0.0","vitest":"^2.1.8"}}
