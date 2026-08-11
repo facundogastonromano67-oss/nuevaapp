@@ -102,7 +102,8 @@ export function generateDailyHabits(state, date = new Date()) {
     ['priorities', 'plan-day', 'project', 'no-phone', 'tidy'],
     ['vegetables', 'fruit', 'protein', 'meal-prep', 'conversation', 'listen'],
   ];
-  const catalogIds = ['sleep', 'water', ...groups.map((group, index) => group[(seed + index * 2) % group.length])];
+  const selectedHabitIds=Array.isArray(state.onboardingAnswers?.dailyHabits)?state.onboardingAnswers.dailyHabits.filter(id=>id!=='strength'):[];
+  const catalogIds = selectedHabitIds.length ? [...new Set(selectedHabitIds)] : ['sleep', 'water', ...groups.map((group, index) => group[(seed + index * 2) % group.length])];
   const generated = catalogIds.map(id => catalogById(habitCatalog, id)).filter(Boolean).map(item => ({
     id: `daily-${dateKey}-${item.id}`, catalogId: item.id, category: item.category, emoji: item.emoji,
     name: item.name, target: item.target, baseline: 'Asignado hoy', active: true, done: false, custom: false, daily: true, dateKey,
@@ -248,7 +249,7 @@ export function createWorkoutExercise(exerciseId,routineType='full-body',setsOve
   const catalogExercise=catalogById(exerciseCatalog,resolvedId);
   const template=routineTemplates[routineType]||routineTemplates['full-body'];
   const legacy=exerciseLibrary[exerciseId]||exerciseLibrary.squat;
-  const base=catalogExercise?{name:catalogExercise.name,target:`${catalogExercise.muscle} · ${catalogExercise.type==='isolation'?'aislamiento':'trabajo principal'}`,tech:catalogExercise.tech,img:catalogExercise.img}:{...legacy};
+  const base=catalogExercise?{name:catalogExercise.name,target:`${catalogExercise.muscle} · ${catalogExercise.type==='isolation'?'aislamiento':'trabajo principal'}`,tech:catalogExercise.tech,img:catalogExercise.img,visualIndex:catalogExercise.visualIndex,fallbackImg:catalogExercise.fallbackImg}:{...legacy};
   const reps=['strength','heavy-duty'].includes(routineType)?template.reps:(catalogExercise?.defaultReps||template.reps);
   const sets=Math.max(1,setsOverride||template.sets);
   const rest=exerciseRestSeconds(resolvedId,routineType);
@@ -326,7 +327,7 @@ export function buildNutritionWeek(targets, answers = {}) {
     const preset=compatible[(dayIndex+index)%compatible.length];
     const foods=scaleMealFoods(preset.foods,targets.calories*share);
     const ingredients=formatMealIngredients(foods);
-    return { id: `${dayIndex}-${index}`, slot, presetId:preset.id, mealGroup:preset.group, name:preset.name, ...calculateMealNutrition(foods), foods, ingredients, steps:`${preset.steps} Cantidades para esta porción: ${ingredients}.`, img:preset.img };
+    return { id: `${dayIndex}-${index}`, slot, presetId:preset.id, mealGroup:preset.group, name:preset.name, ...calculateMealNutrition(foods), foods, ingredients, steps:`${preset.steps} Cantidades para esta porción: ${ingredients}.`, img:preset.img, visualIndex:preset.visualIndex };
   }) }));
 }
 

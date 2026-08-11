@@ -1,5 +1,13 @@
 const option = (value, label = value) => ({ value, label });
 
+const dailyHabitOptions = [
+  ['sleep','🌙 Dormir a horario'],['water','💧 Tomar agua'],['steps','👟 Caminar'],['strength','🏋️ Entrenamiento de fuerza'],
+  ['mobility','🤸 Movilidad'],['focus','🎯 Foco profundo'],['meditation','🧠 Meditación'],['reading','📚 Leer'],
+  ['learning','💡 Aprender algo nuevo'],['journal','📓 Escribir reflexión'],['priorities','✅ Definir prioridades'],
+  ['plan-day','🗓️ Planificar el día'],['no-phone','📵 Bloque sin teléfono'],['vegetables','🥦 Comer vegetales'],
+  ['protein','🥚 Cumplir proteína'],['conversation','💬 Conversación intencional'],['review','📊 Revisar progreso'],
+];
+
 export const assessmentQuestions = [
   { id: 'sex', section: 'Tu realidad', text: '¿Qué referencia biológica usamos para estimar tu metabolismo?', options: [option('male', 'Masculina'), option('female', 'Femenina')] },
   { id: 'occupation', section: 'Tu realidad', text: '¿A qué te dedicás la mayor parte del día?', options: [option('office', 'Trabajo de oficina o estudio'), option('standing', 'Trabajo de pie'), option('physical', 'Trabajo físico'), option('mixed', 'Actividad mixta')] },
@@ -31,6 +39,7 @@ export const assessmentQuestions = [
   { id: 'dislikes', section: 'Alimentación', text: '¿Qué grupo preferís que no aparezca?', options: [option('none', 'Ninguno'), option('fish', 'Pescado'), option('dairy', 'Lácteos'), option('legumes', 'Legumbres'), option('vegetables', 'Verduras cocidas')] },
   { id: 'exclusions', section: 'Alimentación', text: '¿Hay una exclusión que debamos respetar?', options: [option('none', 'Ninguna'), option('gluten', 'Sin gluten'), option('lactose', 'Sin lactosa'), option('nuts', 'Sin frutos secos'), option('professional', 'Tengo indicaciones profesionales específicas')] },
   { id: 'intellect', section: 'Intelecto', text: '¿Qué tipo de desafío intelectual querés recibir primero?', options: [option('logic', 'Lógica y patrones'), option('memory', 'Memoria'), option('focus', 'Atención y foco'), option('planning', 'Planificación y decisiones'), option('learning', 'Aprendizaje y adaptación')] },
+  { id: 'dailyHabits', section: 'Hábitos', text: '¿Qué hábitos querés que formen parte de tu plan diario?', multi: true, options: dailyHabitOptions.map(([id,label])=>option(id,label)) },
 ];
 
 export function answersFromForm(form) {

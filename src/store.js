@@ -1,13 +1,15 @@
 import { attributes, combatSkills } from './data.js';
 import { buildNutritionWeek, buildTrainingPlan, calculateNutritionTargets, createDailyAssignment, localDateKey } from './engines.js';
+import { catalogById, exerciseCatalog, mealPresetCatalog } from './catalogs.js';
 
 const KEY = 'facu-owner-v1';
-const VERSION = 5;
+const VERSION = 6;
 const defaultAnswers = {
   sex: 'male', activity: 'light', goal: 'performance', routineType: 'full-body',
   trainingDays: ['Lunes', 'Miércoles', 'Viernes'], weeklyFrequency: '3', duration: '50',
   equipment: 'full', experience: 'novice', mealCount: '4', dietStyle: 'simple',
   proteins: ['Pollo', 'Huevos'], carbs: ['Arroz', 'Avena'], produce: ['Tomate', 'Zanahoria'], intellect: 'logic',
+  dailyHabits: ['sleep','water','steps','focus','reading','vegetables'],
 };
 
 const skillSeed = () => Object.entries(attributes).flatMap(([attr, names]) => names.map((name, index) => ({
@@ -104,6 +106,10 @@ export function migrateState(saved) {
     const nutritionTargets = { ...calculateNutritionTargets(merged.profile, { ...defaultAnswers, ...saved.onboardingAnswers }), ...merged.nutrition.settings };
     merged.nutrition.weeklyPlan = buildNutritionWeek(nutritionTargets, { ...defaultAnswers, ...saved.onboardingAnswers, mealCount: String(merged.nutrition.settings.count || 4) });
     merged.nutrition.selectedDay = Math.min(6, Math.max(0, Number(merged.nutrition.selectedDay) || 0));
+  }
+  if (oldVersion < 6) {
+    merged.training.weeklyPlan?.forEach(day=>day.exercises?.forEach(exercise=>{const visual=catalogById(exerciseCatalog,exercise.id)||exerciseCatalog.find(item=>item.name===exercise.name);if(visual){exercise.img=visual.img;exercise.visualIndex=visual.visualIndex;exercise.fallbackImg=visual.fallbackImg;}}));
+    merged.nutrition.weeklyPlan?.forEach(day=>day.meals?.forEach(meal=>{const preset=catalogById(mealPresetCatalog,meal.presetId)||mealPresetCatalog.find(item=>item.name===meal.name);if(preset){meal.img=preset.img;meal.visualIndex=preset.visualIndex;meal.presetId=preset.id;meal.mealGroup=preset.group;}}));
   }
   if (!Array.isArray(merged.training.weeklyPlan) || merged.training.weeklyPlan.length !== 7) merged.training.weeklyPlan = fresh.training.weeklyPlan;
   if (!Array.isArray(merged.training.history)) merged.training.history = [];

@@ -5,9 +5,10 @@ import { exerciseCatalog, foodCatalog, habitCatalog, mealPresetCatalog } from '.
 import { intellectRoutes } from './data.js';
 
 describe('evaluación guiada', () => {
-  it('contiene exactamente 30 preguntas con opciones', () => {
-    expect(assessmentQuestions).toHaveLength(30);
+  it('incluye hábitos dentro del cuestionario guiado', () => {
+    expect(assessmentQuestions).toHaveLength(31);
     expect(assessmentQuestions.every(question => question.options.length >= 2)).toBe(true);
+    expect(assessmentQuestions.find(question => question.id === 'dailyHabits')).toMatchObject({ multi: true });
   });
 
   it('evalúa las cinco habilidades y adapta dos preguntas a la ruta elegida', () => {
@@ -85,6 +86,12 @@ describe('asignación diaria', () => {
     expect(restDay.hasTraining).toBe(false);
     expect(restDay.habits.some(habit => habit.catalogId === 'daily-training')).toBe(false);
     expect(trainingDay.habits.find(habit => habit.id === 'custom-1').done).toBe(false);
+  });
+
+  it('usa como base los hábitos elegidos durante la evaluación', () => {
+    const selectedState = { ...dailyState, onboardingAnswers: { dailyHabits: ['water', 'reading', 'journal'] } };
+    const assignment = createDailyAssignment(selectedState, tuesday);
+    expect(assignment.habits.filter(habit => !habit.custom).map(habit => habit.catalogId)).toEqual(['water', 'reading', 'journal']);
   });
 });
 

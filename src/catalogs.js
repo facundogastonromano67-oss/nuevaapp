@@ -16,6 +16,19 @@ const exerciseArt=(name,muscle)=>{
   return`data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
 };
 
+export const exerciseImageLibrary = {
+  src:'./assets/images/exercise-library-v1.png', columns:4, rows:4,
+  tiles:{
+    'bench-press':0,'incline-press':1,'dumbbell-press':1,'push-up':2,'chest-fly':3,'cable-cross':3,
+    'pull-up':4,'lat-pulldown':4,'barbell-row':5,'seated-row':5,'dumbbell-row':6,'face-pull':7,
+    'back-squat':8,'goblet-squat':8,'romanian-deadlift':9,'deadlift':9,'leg-press':10,'bulgarian-split':11,
+    'leg-curl':10,'leg-extension':10,'calf-raise':11,'overhead-press':12,'dumbbell-shoulder':12,
+    'lateral-raise':12,'rear-delt':7,'barbell-curl':13,'hammer-curl':13,'triceps-pushdown':3,
+    'skull-crusher':0,'dips':2,'plank':14,'dead-bug':14,'cable-crunch':14,'hanging-knee':14,
+    'treadmill':15,'bike':15,'rowing':5,
+  },
+};
+
 export const exerciseCatalog = [
   ['Pecho','bench-press','Press de banca','compound',8],['Pecho','incline-press','Press inclinado','compound',10],['Pecho','dumbbell-press','Press con mancuernas','compound',10],['Pecho','push-up','Flexiones','compound',12],['Pecho','chest-fly','Aperturas','isolation',12],['Pecho','cable-cross','Cruce de poleas','isolation',15],
   ['Espalda','pull-up','Dominadas','compound',8],['Espalda','lat-pulldown','Jalón al pecho','compound',10],['Espalda','barbell-row','Remo con barra','compound',8],['Espalda','dumbbell-row','Remo con mancuerna','compound',10],['Espalda','seated-row','Remo sentado','compound',12],['Espalda','face-pull','Face pull','isolation',15],
@@ -24,7 +37,7 @@ export const exerciseCatalog = [
   ['Brazos','barbell-curl','Curl con barra','isolation',12],['Brazos','hammer-curl','Curl martillo','isolation',12],['Brazos','triceps-pushdown','Extensión de tríceps','isolation',12],['Brazos','skull-crusher','Press francés','isolation',10],['Brazos','dips','Fondos','compound',10],
   ['Core','plank','Plancha frontal','core',45],['Core','dead-bug','Dead bug','core',12],['Core','cable-crunch','Crunch en polea','core',15],['Core','hanging-knee','Elevación de rodillas','core',12],
   ['Cardio','treadmill','Cinta o caminata','cardio',20],['Cardio','bike','Bicicleta','cardio',20],['Cardio','rowing','Remo ergómetro','cardio',15],
-].map(([muscle,id,name,type,defaultReps])=>({muscle,id,name,type,defaultReps,img:exerciseArt(name,muscle),tech:`Técnica controlada para ${name.toLowerCase()}; detené la serie si aparece dolor.`}));
+].map(([muscle,id,name,type,defaultReps])=>{const visualIndex=exerciseImageLibrary.tiles[id];return{muscle,id,name,type,defaultReps,img:`${exerciseImageLibrary.src}#tile-${visualIndex}`,visualIndex,fallbackImg:exerciseArt(name,muscle),tech:`Técnica controlada para ${name.toLowerCase()}; detené la serie si aparece dolor.`};});
 
 export const foodCatalog = [
   ['Proteínas','egg','🥚','Huevo','unidad',1,70,6,0.5,5],['Proteínas','egg-white','🍳','Clara de huevo','unidad',1,17,3.6,0.2,0],['Proteínas','chicken','🍗','Pechuga de pollo','g',100,165,31,0,3.6],['Proteínas','beef','🥩','Carne vacuna magra','g',100,200,27,0,10],['Proteínas','tuna','🐟','Atún al natural','g',100,116,26,0,1],['Proteínas','salmon','🐟','Salmón','g',100,208,20,0,13],['Proteínas','turkey','🍗','Pavo','g',100,135,29,0,1],['Proteínas','tofu','🧊','Tofu','g',100,144,17,3,9],['Proteínas','lentils','🫘','Lentejas cocidas','g',100,116,9,20,0.4],
@@ -51,6 +64,9 @@ export const mealPresetCatalog = [
   {id:'tuna-rice',group:'Almuerzo / Cena',allowedSlots:['Almuerzo','Cena'],emoji:'🥗',name:'Ensalada de atún y arroz',foods:[['tuna',140],['rice',180],['tomato',100],['greens',100],['olive-oil',.5]],steps:'Cociná y enfriá el arroz. Mezclalo con atún, tomate, hojas verdes y aceite.',img:'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=900&q=80'},
   {id:'lentil-quinoa',group:'Almuerzo / Cena',allowedSlots:['Almuerzo','Cena'],emoji:'🫘',name:'Bowl de lentejas y quinoa',foods:[['lentils',180],['quinoa',160],['pumpkin',150],['olive-oil',.5]],steps:'Cociná la quinoa y la calabaza. Sumá las lentejas calientes y terminá con aceite.',img:'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=900&q=80'},
 ];
+
+export const mealImageLibrary={src:'./assets/images/meal-library-v1.png',columns:4,rows:3};
+mealPresetCatalog.forEach((preset,index)=>{preset.visualIndex=index;preset.img=`${mealImageLibrary.src}#meal-${index}`;});
 
 export const mealPresetsForSlot=slot=>mealPresetCatalog.filter(preset=>preset.allowedSlots.includes(slot));
 
