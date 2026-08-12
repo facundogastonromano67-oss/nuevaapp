@@ -13,16 +13,21 @@
 <body>
   <div id="app"><div class="boot-fallback">Iniciando SYSTEM…</div></div>
   <script type="module">
-    const migrationKey='facu-sw-migration-v8';
-    if('serviceWorker' in navigator&&location.protocol.startsWith('http')&&!localStorage.getItem(migrationKey)){
-      localStorage.setItem(migrationKey,'1');
-      const registrations=await navigator.serviceWorker.getRegistrations();
-      await Promise.all(registrations.map(registration=>registration.unregister()));
-      if('caches' in window){const names=await caches.keys();await Promise.all(names.map(name=>caches.delete(name)));}
-      location.reload();
-    }else{
-      await import('./src/main.js?v=10');
-    }
+    (async()=>{
+      const migrationKey='facu-sw-migration-v9';
+      if('serviceWorker' in navigator&&location.protocol.startsWith('http')&&!localStorage.getItem(migrationKey)){
+        localStorage.setItem(migrationKey,'1');
+        const registrations=await navigator.serviceWorker.getRegistrations();
+        await Promise.all(registrations.map(registration=>registration.unregister()));
+        if('caches' in window){const names=await caches.keys();await Promise.all(names.map(name=>caches.delete(name)));}
+        location.reload();
+      }else{
+        await import('./src/main.js?v=11');
+      }
+    })().catch(error=>{
+      console.error('No se pudo iniciar SYSTEM',error);
+      document.querySelector('#app').innerHTML='<div class="boot-fallback">No se pudo iniciar SYSTEM. Recargá la página.</div>';
+    });
   </script>
 </body>
 </html>

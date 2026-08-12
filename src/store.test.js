@@ -20,7 +20,8 @@ describe('migración defensiva del estado', () => {
       training: { settings: { duration: 40 } },
     });
 
-    expect(migrated.onboarded).toBe(true);
+    expect(migrated.onboarded).toBe(false);
+    expect(migrated.assessmentVersion).toBe(3);
     expect(migrated.profile.name).toBe('FACU');
     expect(migrated.training.settings.duration).toBe(40);
     expect(migrated.training.exercises.length).toBeGreaterThan(0);

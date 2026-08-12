@@ -79,3 +79,15 @@ export const intellectAdaptiveQuestions = {
     iq('learning-extra-recall', 'Aprendizaje', 'Ruta elegida', '¿Qué práctica suele comprobar mejor si entendiste una idea?', [['Releerla muchas veces'], ['Explicarla sin mirar y detectar vacíos', true], ['Subrayar todo el texto']]),
   ],
 };
+
+export const sportCatalog = [
+  {id:'football',name:'Fútbol',emoji:'⚽',lowerLoad:'high',impact:'high'},
+  {id:'basketball',name:'Básquet',emoji:'🏀',lowerLoad:'high',impact:'high'},
+  {id:'padel',name:'Pádel',emoji:'🎾',lowerLoad:'moderate',impact:'moderate'},
+  {id:'tennis',name:'Tenis',emoji:'🎾',lowerLoad:'moderate',impact:'moderate'},
+  {id:'running',name:'Running',emoji:'🏃',lowerLoad:'high',impact:'high'},
+  {id:'cycling',name:'Ciclismo',emoji:'🚴',lowerLoad:'moderate',impact:'low'},
+  {id:'swimming',name:'Natación',emoji:'🏊',lowerLoad:'low',impact:'low'},
+  {id:'combat',name:'Deporte de combate',emoji:'🥊',lowerLoad:'high',impact:'high'},
+  {id:'other',name:'Otro deporte',emoji:'🏅',lowerLoad:'moderate',impact:'moderate'},
+];

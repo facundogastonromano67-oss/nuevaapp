@@ -1,5 +1,5 @@
 import { exerciseCatalog, foodCatalog, habitCatalog, catalogById, mealPresetsForSlot } from './catalogs.js';
-import { intellectAdaptiveQuestions, intellectCoreQuestions, intellectRoutes } from './data.js';
+import { intellectAdaptiveQuestions, intellectCoreQuestions, intellectRoutes, sportCatalog } from './data.js';
 
 export function buildIntellectAssessment(preference = 'logic') {
   const selected = intellectRoutes[preference] ? preference : 'logic';
@@ -70,8 +70,17 @@ export function calculateHardcorePenalty(state, dateKey = state?.daily?.dateKey)
   const items = [];
   (state.missions || []).filter(mission => mission.dateKey === dateKey && mission.status !== 'done').forEach(mission => items.push({ type: 'mission', id: mission.id, label: mission.title, amount: -Math.max(25, Math.round((Number(mission.xp) || 60) * .5)) }));
   (state.habits || []).filter(habit => habit.catalogId !== 'daily-training' && !habit.done).forEach(habit => items.push({ type: 'habit', id: habit.id, label: habit.name, amount: -15 }));
-  const completedTraining = (state.training?.history || []).some(entry => entry.dateKey === dateKey);
-  if (state.daily?.hasTraining && !completedTraining) items.push({ type: 'training', id: `training-${dateKey}`, label: state.daily.trainingTitle || 'Entrenamiento programado', amount: -100 });
+  const activityDay = state.training?.weeklyPlan?.find(day => day.day === state.daily?.dayName);
+  const gymDone = activityDay
+    ? !activityDay.enabled || (state.training?.history || []).some(entry => entry.dateKey === dateKey && entry.day === activityDay.day)
+    : (state.training?.history || []).some(entry => entry.dateKey === dateKey);
+  const sportDone = !activityDay?.sport || (state.training?.sportHistory || []).some(entry => entry.dateKey === dateKey && entry.day === activityDay.day);
+  if (state.daily?.hasTraining && (!gymDone || !sportDone)) {
+    const label = !gymDone && !sportDone
+      ? `${activityDay?.title || 'Gimnasio'} + ${activityDay?.sport?.name || 'deporte'}`
+      : !gymDone ? activityDay?.title || 'Gimnasio programado' : activityDay?.sport?.name || 'Deporte programado';
+    items.push({ type: 'training', id: `training-${dateKey}`, label, amount: -100 });
+  }
   const nutritionDay = state.nutrition?.weeklyPlan?.find(day => day.day === state.daily?.dayName);
   const completedMeals = new Set(state.nutrition?.done || []);
   (nutritionDay?.meals || []).filter(meal => !completedMeals.has(meal.id)).forEach(meal => items.push({ type: 'nutrition', id: meal.id, label: `${meal.slot}: ${meal.name}`, amount: -12 }));
@@ -92,7 +101,7 @@ export function localDateKey(date = new Date()) {
 
 export function trainingForDate(state, date = new Date()) {
   const dayName = localDayNames[date.getDay()];
-  return state.training?.weeklyPlan?.find(day => day.day === dayName && day.enabled) || null;
+  return state.training?.weeklyPlan?.find(day => day.day === dayName && (day.enabled||day.sport)) || null;
 }
 
 export function generateDailyMissions(state, date = new Date(), variant = 0) {
@@ -127,7 +136,7 @@ export function generateDailyMissions(state, date = new Date(), variant = 0) {
   const selected = [
     { ...cognitive[seed % cognitive.length], category: 'Intelecto' },
     training
-      ? { title: `Completar ${training.title}`, detail: `${training.exercises.length} ejercicios · ${state.training.settings.duration} minutos programados`, xp: 100, emoji: '🏋️', category: 'Entrenamiento' }
+      ? { title: `Completar ${training.enabled?training.title:training.sport.name}`, detail: training.enabled&&training.sport?`${training.exercises.length} ejercicios de gimnasio + ${training.sport.name}`:training.enabled?`${training.exercises.length} ejercicios · ${state.training.settings.duration} minutos programados`:`${training.sport.emoji} ${training.sport.duration} min · carga ${training.sport.intensityLabel.toLowerCase()}`, xp: 100, emoji: training.sport?.emoji||'🏋️', category: 'Entrenamiento' }
       : { ...recovery[(seed + 1) % recovery.length], category: 'Recuperación' },
     { ...closures[(seed + 2) % closures.length], category: 'Vida diaria' },
   ];
@@ -177,7 +186,7 @@ export function generateDailyHabits(state, date = new Date()) {
   const training = trainingForDate(state, date);
   if (training) generated.push({
     id: `daily-${dateKey}-training`, catalogId: 'daily-training', category: 'Entrenamiento', emoji: '🏋️',
-    name: 'Completar rutina de entrenamiento', target: training.title, baseline: 'Rutina programada', active: true, done: false, custom: false, daily: true, dateKey,
+    name: training.enabled?'Completar rutina de entrenamiento':'Completar deporte programado', target: training.enabled&&training.sport?`${training.title} + ${training.sport.name}`:training.enabled?training.title:training.sport.name, baseline: 'Actividad programada', active: true, done: false, custom: false, daily: true, dateKey,
   });
   const custom = (state.habits || []).filter(habit => habit.custom).map(habit => ({ ...habit, done: false, daily: false, dateKey }));
   return [...generated, ...custom];
@@ -342,25 +351,56 @@ const splitExerciseIds = {
   lower: ['back-squat', 'leg-press', 'romanian-deadlift', 'leg-curl', 'bulgarian-split', 'leg-extension', 'calf-raise', 'plank'],
 };
 
-export function buildTrainingDay(routineType = 'full-body', split = 'upper') {
+const sportLowerExerciseIds={
+  football:['romanian-deadlift','bulgarian-split','leg-curl','calf-raise','back-squat','plank'],
+  basketball:['back-squat','bulgarian-split','calf-raise','romanian-deadlift','leg-curl','plank'],
+  running:['bulgarian-split','romanian-deadlift','calf-raise','leg-curl','back-squat','plank'],
+  cycling:['back-squat','leg-press','romanian-deadlift','leg-curl','calf-raise','plank'],
+  combat:['back-squat','romanian-deadlift','bulgarian-split','leg-curl','calf-raise','plank'],
+};
+
+export function buildTrainingDay(routineType = 'full-body', split = 'upper', context={}) {
   const template = routineTemplates[routineType] || routineTemplates['full-body'];
   const selectedSplit = splitExerciseIds[split] ? split : 'upper';
-  const exerciseCount = routineType==='hypertrophy'?(selectedSplit==='upper'?8:6):6;
-  return splitExerciseIds[selectedSplit].slice(0, exerciseCount).map(id => createWorkoutExercise(id, routineType, template.sets));
+  const fatigue=selectedSplit==='lower'&&Boolean(context.lowerFatigue);
+  const exerciseCount = fatigue?4:routineType==='hypertrophy'?(selectedSplit==='upper'?8:6):6;
+  const exerciseIds=selectedSplit==='lower'&&sportLowerExerciseIds[context.sportType]?sportLowerExerciseIds[context.sportType]:splitExerciseIds[selectedSplit];
+  const sets=fatigue?Math.max(1,template.sets-1):template.sets;
+  return exerciseIds.slice(0, exerciseCount).map(id => createWorkoutExercise(id, routineType, sets));
+}
+
+export function sportScheduleFromAnswers(answers={}){
+  if(!answers.sportType||answers.sportType==='none')return[];
+  const sport=sportCatalog.find(item=>item.id===answers.sportType)||sportCatalog.at(-1);
+  const intensity=answers.sportIntensity||'moderate',intensityLabel={light:'Suave',moderate:'Moderada',high:'Alta'}[intensity];
+  return (Array.isArray(answers.sportDays)?answers.sportDays:[]).filter(day=>days.includes(day)).map(day=>({day,type:sport.id,name:sport.name,emoji:sport.emoji,intensity,intensityLabel,duration:Number(answers.sportDuration)||75,lowerLoad:sport.lowerLoad,impact:sport.impact}));
+}
+
+function arrangeGymDays(wanted,frequency,sports,combination){
+  const selected=[...new Set(wanted.filter(day=>days.includes(day)))],sportDays=new Set(sports.map(item=>item.day));
+  if(combination==='same-day')return [...sports.map(item=>item.day),...selected.filter(day=>!sportDays.has(day)),...days.filter(day=>!sportDays.has(day)&&!selected.includes(day))].slice(0,frequency);
+  const separated=[...selected.filter(day=>!sportDays.has(day)),...days.filter(day=>!sportDays.has(day)&&!selected.includes(day))];
+  if(combination==='separate')return separated.slice(0,frequency);
+  return [...separated,...selected.filter(day=>sportDays.has(day)),...days.filter(day=>sportDays.has(day)&&!selected.includes(day))].slice(0,frequency);
 }
 
 export function buildTrainingPlan(answers = {}) {
   const template = routineTemplates[answers.routineType] || routineTemplates['full-body'];
   const wanted = Array.isArray(answers.trainingDays) ? answers.trainingDays : [];
-  const frequency = Math.max(3, Number(answers.weeklyFrequency) || wanted.length || 3);
-  const selected = (wanted.length ? wanted : days.filter((_, index) => [0, 2, 4, 5].includes(index))).slice(0, frequency);
-  let workoutIndex = 0;
+  const frequency = Math.max(2, Number(answers.weeklyFrequency) || wanted.length || 3);
+  const sports=sportScheduleFromAnswers(answers),combination=answers.sportCombination||'adaptive';
+  const selected = arrangeGymDays(wanted.length?wanted:days.filter((_, index) => [0, 2, 4, 5].includes(index)),frequency,sports,combination);
+  let nextSplit = 'upper';
   return days.map(day => {
     const enabled = selected.includes(day);
-    const split = workoutIndex % 2 === 0 ? 'upper' : 'lower';
+    const sport=sports.find(item=>item.day===day)||null,highLegSport=sport&&sport.lowerLoad==='high'&&sport.intensity!=='light';
+    let split=nextSplit;
+    if(enabled&&highLegSport&&split==='lower'&&combination!=='same-day')split='upper';
+    if(enabled&&split===nextSplit)nextSplit=nextSplit==='upper'?'lower':'upper';
     const splitLabel = split === 'upper' ? 'Tren superior' : 'Tren inferior';
-    const entry = { day, enabled, split, title: enabled ? `${template.label} · ${splitLabel}` : 'Recuperación', exercises: enabled ? buildTrainingDay(answers.routineType, split) : [] };
-    if (enabled) workoutIndex++;
+    const adjacentHighSport=sports.some(item=>{const gap=Math.abs(days.indexOf(item.day)-days.indexOf(day));return item.lowerLoad==='high'&&item.intensity!=='light'&&Math.min(gap,7-gap)<=1;});
+    const lowerFatigue=enabled&&split==='lower'&&adjacentHighSport;
+    const entry = { day, enabled, sport, split, title: enabled ? `${template.label} · ${splitLabel}` : sport?`${sport.name} · ${sport.intensityLabel}`:'Recuperación', loadNote:lowerFatigue?'Volumen inferior reducido por cercanía con el deporte':enabled&&sport?'Sesión combinada: se prioriza el tren superior':'', exercises: enabled ? buildTrainingDay(answers.routineType, split,{sportType:sport?.type||sports[0]?.type,lowerFatigue}) : [] };
     return entry;
   });
 }

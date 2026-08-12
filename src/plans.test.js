@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { assessmentQuestions } from './assessment.js';
-import { buildHabitSchedule, buildIntellectAssessment, buildNutritionWeek, buildTrainingDay, buildTrainingPlan, calculateFoodNutrition, calculateHardcorePenalty, calculateMealNutrition, calculateNutritionTargets, createArenaBattle, createDailyAssignment, createWorkoutExercise, effortProgression, exerciseRestSeconds, formatMealIngredients, generateDailyHabits, generateDailyMissions, localDateKey, repetitionProgression, resolveArenaTurn, scoreIntellectAssessment, transactXp } from './engines.js';
+import { buildHabitSchedule, buildIntellectAssessment, buildNutritionWeek, buildTrainingDay, buildTrainingPlan, calculateFoodNutrition, calculateHardcorePenalty, calculateMealNutrition, calculateNutritionTargets, createArenaBattle, createDailyAssignment, createWorkoutExercise, effortProgression, exerciseRestSeconds, formatMealIngredients, generateDailyHabits, generateDailyMissions, localDateKey, repetitionProgression, resolveArenaTurn, scoreIntellectAssessment, sportScheduleFromAnswers, transactXp } from './engines.js';
 import { exerciseCatalog, foodCatalog, habitCatalog, mealPresetCatalog } from './catalogs.js';
 import { intellectRoutes } from './data.js';
 
 describe('evaluación guiada', () => {
   it('incluye hábitos dentro del cuestionario guiado', () => {
-    expect(assessmentQuestions).toHaveLength(32);
+    expect(assessmentQuestions).toHaveLength(36);
     expect(assessmentQuestions.every(question => question.options.length >= 2)).toBe(true);
     expect(assessmentQuestions.find(question => question.id === 'dailyHabits')).toMatchObject({ multi: true });
     expect(assessmentQuestions.find(question => question.id === 'planMode')?.options.map(option => option.value)).toEqual(['normal', 'hardcore']);
@@ -54,6 +54,18 @@ describe('experiencia y contrato del plan', () => {
     };
     expect(calculateHardcorePenalty(state).total).toBe(179);
     expect(calculateHardcorePenalty({ ...state, plan: { ...state.plan, mode: 'normal' } }).total).toBe(0);
+  });
+
+  it('considera el deporte al evaluar la actividad diaria Hardcore', () => {
+    const state = {
+      plan: { mode: 'hardcore', status: 'active', penaltyHistory: [] }, missions: [], habits: [],
+      daily: { dateKey: '2026-08-12', dayName: 'Miércoles', hasTraining: true },
+      training: { history: [], sportHistory: [{ dateKey: '2026-08-12', day: 'Miércoles' }], weeklyPlan: [{ day: 'Miércoles', enabled: false, sport: { name: 'Fútbol' } }] },
+      nutrition: { done: [], weeklyPlan: [] },
+    };
+    expect(calculateHardcorePenalty(state).total).toBe(0);
+    state.training.sportHistory = [];
+    expect(calculateHardcorePenalty(state).total).toBe(100);
   });
 });
 
@@ -159,6 +171,19 @@ describe('generación de planes', () => {
     const upper=buildTrainingDay('hypertrophy','upper');
     expect(upper.slice(0,2).map(exercise=>exercise.id)).toEqual(['bench-press','dumbbell-press']);
     expect(upper.every(exercise=>exercise.setData.length===3)).toBe(true);
+  });
+
+  it('integra tres días de fútbol y adapta el gimnasio',()=>{
+    const football={...answers,sportType:'football',sportDays:['Martes','Jueves','Sábado'],sportIntensity:'high',sportCombination:'separate'};
+    const separated=buildTrainingPlan(football);
+    expect(sportScheduleFromAnswers(football)).toHaveLength(3);
+    expect(separated.filter(day=>day.enabled&&day.sport)).toHaveLength(0);
+    expect(separated.find(day=>day.day==='Martes').sport.name).toBe('Fútbol');
+    const combined=buildTrainingPlan({...football,trainingDays:['Martes','Jueves','Sábado'],weeklyFrequency:'3',sportCombination:'same-day'});
+    expect(combined.filter(day=>day.enabled&&day.sport)).toHaveLength(3);
+    expect(combined.find(day=>day.day==='Jueves').split).toBe('lower');
+    expect(combined.find(day=>day.day==='Jueves').exercises.every(exercise=>exercise.setData.length<=2)).toBe(true);
+    expect(buildTrainingPlan({...football,weeklyFrequency:'2',sportCombination:'adaptive'}).filter(day=>day.enabled)).toHaveLength(2);
   });
 
   it('arma siete días de alimentación dentro del objetivo', () => {

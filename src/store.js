@@ -3,11 +3,12 @@ import { buildHabitSchedule, buildNutritionWeek, buildTrainingDay, buildTraining
 import { catalogById, exerciseCatalog, mealPresetCatalog } from './catalogs.js';
 
 const KEY = 'facu-owner-v1';
-const VERSION = 10;
+const VERSION = 11;
 const defaultAnswers = {
   sex: 'male', activity: 'light', goal: 'performance', routineType: 'full-body',
   planMode: 'normal',
   trainingDays: ['Lunes', 'Miércoles', 'Viernes'], weeklyFrequency: '3', duration: '50',
+  sportType: 'none', sportDays: ['Ninguno'], sportIntensity: 'moderate', sportCombination: 'adaptive',
   equipment: 'full', experience: 'novice', mealCount: '4', dietStyle: 'simple',
   proteins: ['Pollo', 'Huevos'], carbs: ['Arroz', 'Avena'], produce: ['Tomate', 'Zanahoria'], intellect: 'logic',
   dailyHabits: ['sleep','water','steps','focus','reading','vegetables'],
@@ -54,8 +55,8 @@ export const initialState = () => {
     missions: [],
     training: {
       started: null, current: 0, selectedDay: weeklyPlan.findIndex(day => day.enabled), weeklyPlan,
-      exercises: weeklyPlan.find(day => day.enabled)?.exercises || [], history: [],
-      settings: { type: 'full-body', days: 3, duration: 50, equipment: 'Gimnasio completo', limitations: 'Ninguna' },
+      exercises: weeklyPlan.find(day => day.enabled)?.exercises || [], history: [], sportHistory: [],
+      settings: { type: 'full-body', days: 3, duration: 50, equipment: 'Gimnasio completo', limitations: 'Ninguna', sportType: 'none', sportIntensity: 'moderate', sportCombination: 'adaptive' },
     },
     nutrition: {
       selectedDay: 0, weeklyPlan: nutritionWeek, meals: nutritionWeek[0].meals, done: [], favorites: [],
@@ -67,7 +68,7 @@ export const initialState = () => {
     arena: { rating: 1000, wins: 0, losses: 0, deck: [1, 2, 3, 4, 5], skills: combatSkills, history: [], battle: null, selectedMode: null },
     history: [],
     daily: { dateKey: '', dayName: '', assignedAt: 0, welcomeSeenDate: '', noticeSeenDate: '', recalibrations: 0, hasTraining: false, trainingTitle: '' },
-    ui: { route: 'general', more: 'g30' },
+    ui: { route: 'general', more: 'g30', theme: 'system' },
   };
   state.plan.habitSchedule = buildHabitSchedule(state);
   state.plan.habitScheduleStage = stageForDay(state.g30.day);
@@ -142,6 +143,10 @@ export function migrateState(saved) {
     });
     merged.training.current=0;
   }
+  if (oldVersion < 11) {
+    merged.training.weeklyPlan=merged.training.weeklyPlan.map(day=>({...day,sport:day.sport||null,loadNote:day.loadNote||''}));
+    merged.ui.theme=merged.ui.theme||'system';
+  }
   delete merged.checkin;
   if (!Array.isArray(merged.plan.habitSchedule) || merged.plan.habitSchedule.length !== 7) {
     merged.plan.habitSchedule = buildHabitSchedule(merged);
@@ -149,6 +154,7 @@ export function migrateState(saved) {
   }
   if (!Array.isArray(merged.training.weeklyPlan) || merged.training.weeklyPlan.length !== 7) merged.training.weeklyPlan = fresh.training.weeklyPlan;
   if (!Array.isArray(merged.training.history)) merged.training.history = [];
+  if (!Array.isArray(merged.training.sportHistory)) merged.training.sportHistory = [];
   if (!Array.isArray(merged.nutrition.weeklyPlan) || merged.nutrition.weeklyPlan.length !== 7) merged.nutrition.weeklyPlan = fresh.nutrition.weeklyPlan;
   if (!Array.isArray(merged.nutrition.done)) merged.nutrition.done = [];
   if (!Array.isArray(merged.nutrition.favorites)) merged.nutrition.favorites = [];

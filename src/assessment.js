@@ -19,7 +19,11 @@ export const assessmentQuestions = [
   { id: 'experience', section: 'Entrenamiento', text: '¿Qué experiencia tenés entrenando con una rutina?', options: [option('beginner', 'Menos de 6 meses'), option('novice', '6 a 18 meses'), option('intermediate', '1,5 a 3 años'), option('advanced', 'Más de 3 años')] },
   { id: 'routineType', section: 'Entrenamiento', text: '¿Qué tipo de rutina querés seguir?', options: [option('heavy-duty', 'Heavy Duty'), option('hypertrophy', 'Hipertrofia'), option('strength', 'Fuerza'), option('full-body', 'Full Body')] },
   { id: 'trainingDays', section: 'Entrenamiento', text: '¿Qué días podés entrenar?', multi: true, options: ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'].map(x => option(x)) },
-  { id: 'weeklyFrequency', section: 'Entrenamiento', text: '¿Cuántas sesiones podés sostener todas las semanas?', options: [3,4,5,6].map(x => option(String(x), `${x} días`)) },
+  { id: 'weeklyFrequency', section: 'Entrenamiento', text: '¿Cuántas sesiones de gimnasio podés sostener todas las semanas?', options: [2,3,4,5,6].map(x => option(String(x), `${x} días`)) },
+  { id: 'sportType', section: 'Deporte', text: '¿Practicás algún deporte además del gimnasio?', options: [option('none','No practico otro deporte'),option('football','⚽ Fútbol'),option('basketball','🏀 Básquet'),option('padel','🎾 Pádel'),option('tennis','🎾 Tenis'),option('running','🏃 Running'),option('cycling','🚴 Ciclismo'),option('swimming','🏊 Natación'),option('combat','🥊 Deporte de combate'),option('other','🏅 Otro')] },
+  { id: 'sportDays', section: 'Deporte', text: '¿Qué días practicás ese deporte?', multi: true, options: [option('Ninguno','No corresponde'),...['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'].map(x=>option(x))] },
+  { id: 'sportIntensity', section: 'Deporte', text: '¿Qué exigencia tiene normalmente?', options: [option('light','Suave o recreativa'),option('moderate','Moderada'),option('high','Alta o competitiva')] },
+  { id: 'sportCombination', section: 'Deporte', text: '¿Cómo querés combinar deporte y gimnasio?', options: [option('adaptive','Que el Sistema elija según recuperación'),option('separate','Prefiero días separados'),option('same-day','Puedo hacer ambos el mismo día')] },
   { id: 'duration', section: 'Entrenamiento', text: '¿Cuánto tiempo real tenés por sesión?', options: [option('35', '35 minutos'), option('50', '50 minutos'), option('65', '65 minutos'), option('80', '80 minutos')] },
   { id: 'venue', section: 'Entrenamiento', text: '¿Dónde vas a entrenar principalmente?', options: [option('gym', 'Gimnasio'), option('home', 'Casa'), option('outdoors', 'Aire libre'), option('mixed', 'Combinado')] },
   { id: 'equipment', section: 'Entrenamiento', text: '¿Con qué equipamiento contás?', options: [option('full', 'Gimnasio completo'), option('basic', 'Mancuernas y banco'), option('bands', 'Bandas y peso corporal'), option('bodyweight', 'Sólo peso corporal')] },
@@ -56,11 +60,14 @@ export function assessmentIsComplete(answers) {
 }
 
 export function validateAssessment(answers) {
-  const missing = assessmentQuestions.filter(question => question.multi
+  const skippedSportQuestion=question=>answers.sportType==='none'&&['sportDays','sportIntensity','sportCombination'].includes(question.id);
+  const missing = assessmentQuestions.filter(question => !skippedSportQuestion(question)&&(question.multi
     ? !Array.isArray(answers[question.id]) || answers[question.id].length === 0
-    : !answers[question.id]);
+    : !answers[question.id]));
   const selectedDays = Array.isArray(answers.trainingDays) ? answers.trainingDays.length : 0;
   const weeklyFrequency = Number(answers.weeklyFrequency) || 0;
   const dayMismatch = weeklyFrequency > 0 && selectedDays < weeklyFrequency;
-  return { valid: missing.length === 0 && !dayMismatch, missing, selectedDays, weeklyFrequency, dayMismatch };
+  const sportDays=Array.isArray(answers.sportDays)?answers.sportDays:[];
+  const sportMismatch=answers.sportType==='none'?false:!sportDays.some(day=>day!=='Ninguno');
+  return { valid: missing.length === 0 && !dayMismatch && !sportMismatch, missing, selectedDays, weeklyFrequency, dayMismatch, sportMismatch };
 }
