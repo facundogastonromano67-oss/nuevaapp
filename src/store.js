@@ -1,9 +1,9 @@
-import { attributes, combatSkills } from './data.js';
-import { buildHabitSchedule, buildNutritionWeek, buildTrainingDay, buildTrainingPlan, calculateHardcorePenalty, calculateNutritionTargets, createDailyAssignment, effortProgression, generateDailyHabits, localDateKey, repetitionProgression, stageForDay, transactXp } from './engines.js';
-import { catalogById, exerciseCatalog, mealPresetCatalog } from './catalogs.js';
+import { attributes, combatSkills } from './data.js?v=14';
+import { buildHabitSchedule, buildNutritionWeek, buildTrainingDay, buildTrainingPlan, calculateHardcorePenalty, calculateNutritionTargets, createDailyAssignment, effortProgression, generateDailyHabits, localDateKey, repetitionProgression, stageForDay, transactXp } from './engines.js?v=14';
+import { catalogById, exerciseCatalog, mealPresetCatalog } from './catalogs.js?v=14';
 
 const KEY = 'facu-owner-v1';
-const VERSION = 13;
+const VERSION = 14;
 const defaultAnswers = {
   sex: 'male', activity: 'light', goal: 'performance', routineType: 'full-body',
   planMode: 'normal',
@@ -39,6 +39,7 @@ export const initialState = () => {
     recommendations: { nutrition: targets, routineType: 'full-body', intellect: 'logic' },
     xp: 860,
     xpLedger: [],
+    attributeXp: { Intelecto: 0, Carisma: 0, Rendimiento: 0, Físico: 0 },
     plan: {
       mode: 'normal', status: 'draft', locked: false, generatedAt: 0, acceptedAt: 0,
       rewards: { habit: 25, meal: 20, training: 180 },
@@ -68,7 +69,7 @@ export const initialState = () => {
     arena: { rating: 1000, wins: 0, losses: 0, deck: [1, 2, 3, 4, 5], skills: combatSkills, history: [], battle: null, selectedMode: null },
     history: [],
     daily: { dateKey: '', dayName: '', assignedAt: 0, welcomeSeenDate: '', noticeSeenDate: '', recalibrations: 0, hasTraining: false, trainingTitle: '' },
-    ui: { route: 'general', more: 'g30', theme: 'system', xpFeedback: null },
+    ui: { route: 'general', more: 'g30', theme: 'system', xpFeedback: null, attributeXpFeedback: null },
   };
   state.plan.habitSchedule = buildHabitSchedule(state);
   state.plan.habitScheduleStage = stageForDay(state.g30.day);
@@ -96,6 +97,7 @@ export function migrateState(saved) {
     notepad: { ...fresh.notepad, ...saved.notepad },
     daily: { ...fresh.daily, ...saved.daily },
     ui: { ...fresh.ui, ...saved.ui },
+    attributeXp: { ...fresh.attributeXp, ...saved.attributeXp },
   };
   for (const key of ['tasks', 'habits', 'skills', 'missions', 'history', 'notes']) if (!Array.isArray(merged[key])) merged[key] = fresh[key];
   if (!Array.isArray(merged.xpLedger)) merged.xpLedger = [];

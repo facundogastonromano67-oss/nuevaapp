@@ -6,15 +6,15 @@
   <meta name="theme-color" content="#050914">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon.svg">
-  <link rel="stylesheet" href="./src/styles.css">
-  <link rel="stylesheet" href="./src/updates.css">
+  <link rel="stylesheet" href="./src/styles.css?v=14">
+  <link rel="stylesheet" href="./src/updates.css?v=14">
   <title>SYSTEM // FACU</title>
 </head>
 <body>
   <div id="app"><div class="boot-fallback">Iniciando SYSTEM…</div></div>
   <script type="module">
     (async()=>{
-      const migrationKey='facu-sw-migration-v11';
+      const migrationKey='facu-sw-migration-v12';
       if('serviceWorker' in navigator&&location.protocol.startsWith('http')&&!localStorage.getItem(migrationKey)){
         localStorage.setItem(migrationKey,'1');
         const registrations=await navigator.serviceWorker.getRegistrations();
@@ -22,7 +22,7 @@
         if('caches' in window){const names=await caches.keys();await Promise.all(names.map(name=>caches.delete(name)));}
         location.reload();
       }else{
-        await import('./src/main.js?v=13');
+        await import('./src/main.js?v=14');
       }
     })().catch(error=>{
       console.error('No se pudo iniciar SYSTEM',error);

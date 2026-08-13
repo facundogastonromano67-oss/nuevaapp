@@ -1,5 +1,5 @@
-import { exerciseCatalog, foodCatalog, habitCatalog, catalogById, mealPresetsForSlot } from './catalogs.js';
-import { intellectAdaptiveQuestions, intellectCoreQuestions, intellectRoutes, sportCatalog } from './data.js';
+import { exerciseCatalog, foodCatalog, habitCatalog, catalogById, mealPresetsForSlot } from './catalogs.js?v=14';
+import { intellectAdaptiveQuestions, intellectCoreQuestions, intellectRoutes, sportCatalog } from './data.js?v=14';
 
 export function buildIntellectAssessment(preference = 'logic') {
   const selected = intellectRoutes[preference] ? preference : 'logic';
@@ -36,6 +36,14 @@ export function levelFromXp(xp) {
   let level = 1, need = 500, left = xp;
   while (left >= need) { left -= need; level++; need = Math.round(need * 1.18); }
   return { level, current: left, need, percent: Math.round(left / need * 100) };
+}
+
+export function attributeForActivity(type = '', category = '', label = '') {
+  const text = `${type} ${category} ${label}`.toLocaleLowerCase('es');
+  if (/carisma|social|conversaci|comunicaci|escucha|liderazgo|negociaci/.test(text)) return 'Carisma';
+  if (/intelecto|mente|academ|lesson|quiz|lecci|aprendiz|memoria|foco|planificaci|pensamiento/.test(text)) return 'Intelecto';
+  if (/físico|fisico|entrenamiento|training|deporte|movimiento|recuperaci|nutrici|comida|meal|salud/.test(text)) return 'Físico';
+  return 'Rendimiento';
 }
 
 export function transactXp(xp, ledger = [], transaction = {}) {
@@ -405,7 +413,12 @@ export function buildTrainingPlan(answers = {}) {
   });
 }
 
-export function calculateFoodNutrition(foodId,quantity){
+export function calculateFoodNutrition(foodId,quantity,customFood){
+  if(customFood?.custom){
+    const baseAmount=Math.max(.01,Number(customFood.baseAmount)||(['g','ml'].includes(customFood.unit)?100:1));
+    const multiplier=Math.max(0,Number(quantity)||0)/baseAmount;
+    return{kcal:(Number(customFood.kcal)||0)*multiplier,p:(Number(customFood.p)||0)*multiplier,c:(Number(customFood.c)||0)*multiplier,f:(Number(customFood.f)||0)*multiplier};
+  }
   const food=catalogById(foodCatalog,foodId);
   if(!food)return{kcal:0,p:0,c:0,f:0};
   const multiplier=Math.max(0,Number(quantity)||0)/food.baseAmount;
@@ -413,7 +426,7 @@ export function calculateFoodNutrition(foodId,quantity){
 }
 
 export function calculateMealNutrition(foods=[]){
-  const total=foods.reduce((sum,item)=>{const value=calculateFoodNutrition(item.foodId,item.quantity);return{kcal:sum.kcal+value.kcal,p:sum.p+value.p,c:sum.c+value.c,f:sum.f+value.f};},{kcal:0,p:0,c:0,f:0});
+  const total=foods.reduce((sum,item)=>{const value=calculateFoodNutrition(item.foodId,item.quantity,item);return{kcal:sum.kcal+value.kcal,p:sum.p+value.p,c:sum.c+value.c,f:sum.f+value.f};},{kcal:0,p:0,c:0,f:0});
   return Object.fromEntries(Object.entries(total).map(([key,value])=>[key,Math.round(value*10)/10]));
 }
 
@@ -431,7 +444,7 @@ function scaleMealFoods(template,targetKcal){
 
 export function formatMealIngredients(foods=[]){
   return foods.map(item=>{
-    const food=catalogById(foodCatalog,item.foodId);
+    const food=item.custom?item:catalogById(foodCatalog,item.foodId);
     if(!food)return'';
     const quantity=Number(item.quantity);
     const unit=food.unit==='unidad'&&quantity!==1?'unidades':food.unit==='rebanada'&&quantity!==1?'rebanadas':food.unit;

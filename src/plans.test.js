@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { assessmentQuestions } from './assessment.js';
-import { buildHabitSchedule, buildIntellectAssessment, buildNutritionWeek, buildTrainingDay, buildTrainingPlan, calculateFoodNutrition, calculateHardcorePenalty, calculateMealNutrition, calculateNutritionTargets, createArenaBattle, createDailyAssignment, createWorkoutExercise, effortProgression, exerciseRestSeconds, formatMealIngredients, generateDailyHabits, generateDailyMissions, localDateKey, repetitionProgression, resolveArenaTurn, scoreIntellectAssessment, sportScheduleFromAnswers, transactXp } from './engines.js';
+import { attributeForActivity, buildHabitSchedule, buildIntellectAssessment, buildNutritionWeek, buildTrainingDay, buildTrainingPlan, calculateFoodNutrition, calculateHardcorePenalty, calculateMealNutrition, calculateNutritionTargets, createArenaBattle, createDailyAssignment, createWorkoutExercise, effortProgression, exerciseRestSeconds, formatMealIngredients, generateDailyHabits, generateDailyMissions, localDateKey, repetitionProgression, resolveArenaTurn, scoreIntellectAssessment, sportScheduleFromAnswers, transactXp } from './engines.js';
 import { exerciseCatalog, foodCatalog, habitCatalog, mealPresetCatalog } from './catalogs.js';
 import { intellectRoutes } from './data.js';
 
@@ -82,6 +82,20 @@ describe('bibliotecas de personalización', () => {
 
   it('suma automáticamente los alimentos de una comida', () => {
     expect(calculateMealNutrition([{ foodId: 'egg', quantity: 2 }, { foodId: 'bread', quantity: 2 }])).toMatchObject({ kcal: 300, p: 20 });
+  });
+
+  it('acepta ingredientes propios y recetas de milanesa', () => {
+    const custom={custom:true,foodId:'custom-milanesa',name:'Milanesa casera',unit:'g',baseAmount:100,quantity:180,kcal:230,p:20,c:12,f:11};
+    expect(calculateMealNutrition([custom])).toMatchObject({kcal:414,p:36});
+    expect(formatMealIngredients([custom])).toContain('180 g de Milanesa casera');
+    expect(mealPresetCatalog.some(meal=>meal.name.includes('Milanesa'))).toBe(true);
+  });
+
+  it('asigna cada actividad a su XP de atributo',()=>{
+    expect(attributeForActivity('mission','Intelecto','')).toBe('Intelecto');
+    expect(attributeForActivity('habit','Social','Conversación')).toBe('Carisma');
+    expect(attributeForActivity('training','','')).toBe('Físico');
+    expect(attributeForActivity('mission','Vida diaria','Prioridad terminada')).toBe('Rendimiento');
   });
 
   it('adapta el descanso al método y al tipo de ejercicio', () => {
