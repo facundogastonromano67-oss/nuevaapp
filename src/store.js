@@ -1,9 +1,9 @@
-import { attributes, combatSkills } from './data.js?v=15';
-import { attributeProgress, buildHabitSchedule, buildNutritionWeek, buildTrainingDay, buildTrainingPlan, calculateHardcorePenalty, calculateNutritionTargets, createDailyAssignment, effortProgression, generateDailyHabits, localDateKey, repetitionProgression, stageForDay, transactXp } from './engines.js?v=15';
-import { catalogById, exerciseCatalog, mealPresetCatalog } from './catalogs.js?v=15';
+import { attributes, combatSkills } from './data.js?v=16';
+import { attributeProgress, buildHabitSchedule, buildNutritionWeek, buildTrainingDay, buildTrainingPlan, calculateHardcorePenalty, calculateNutritionTargets, createDailyAssignment, effortProgression, generateDailyHabits, localDateKey, repetitionProgression, stageForDay, transactXp } from './engines.js?v=16';
+import { catalogById, exerciseCatalog, mealPresetCatalog } from './catalogs.js?v=16';
 
 const KEY = 'facu-owner-v1';
-const VERSION = 15;
+const VERSION = 16;
 const defaultAnswers = {
   sex: 'male', activity: 'light', goal: 'performance', routineType: 'full-body',
   planMode: 'normal',
@@ -162,6 +162,11 @@ export function migrateState(saved) {
   if (oldVersion < 11) {
     merged.training.weeklyPlan=merged.training.weeklyPlan.map(day=>({...day,sport:day.sport||null,loadNote:day.loadNote||''}));
     merged.ui.theme=merged.ui.theme||'system';
+  }
+  if (oldVersion < 16 && merged.onboarded) {
+    const assignment=createDailyAssignment(merged,new Date(),Number(merged.daily?.recalibrations)||0);
+    merged.missions=assignment.missions;
+    merged.daily={...merged.daily,dateKey:assignment.dateKey,dayName:assignment.dayName,assignedAt:Date.now(),welcomeSeenDate:'',noticeSeenDate:'',hasTraining:assignment.hasTraining,trainingTitle:assignment.trainingTitle};
   }
   delete merged.checkin;
   if (!Array.isArray(merged.plan.habitSchedule) || merged.plan.habitSchedule.length !== 7) {

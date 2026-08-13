@@ -14,6 +14,10 @@ export const academy=[
  {id:'focus',title:'Foco de combate',skill:'Foco profundo',lessons:[['Bloques de atención','Elegí una salida concreta, cerrá entradas y trabajá 25–50 minutos sin alternar.'],['Recuperar la atención','Cuando aparezca una distracción, anotala y volvé al siguiente gesto físico de la tarea.'],['Energía cognitiva','Ubicá el trabajo exigente en tu franja de mayor energía y agrupá lo administrativo.']]},
  {id:'communication',title:'Comunicación intencional',skill:'Comunicación',lessons:[['Escuchar antes de responder','Reflejando hechos, emoción y necesidad reducís malentendidos antes de proponer soluciones.'],['Mensajes claros','Contexto breve, pedido observable y fecha concreta. Evitá insinuaciones.'],['Conversaciones difíciles','Describí conducta e impacto sin atacar identidad; acordá el próximo paso.']]},
  {id:'physical',title:'Rendimiento físico',skill:'Recuperación',lessons:[['Sobrecarga progresiva','Progresá una variable por vez: repeticiones, carga, series o control técnico.'],['RPE útil','RPE 8 significa unas dos repeticiones en reserva. Registrarlo mejora decisiones futuras.'],['Recuperación activa','Sueño, proteína, pasos y manejo de fatiga sostienen más progreso que sesiones heroicas aisladas.']]}];
+export const academyImageLibrary={src:'./assets/images/academy-concepts-v1.png',columns:4,rows:3};
+export const academyConcepts=academy.flatMap((course,courseIndex)=>course.lessons.map((lesson,lessonIndex)=>({
+  id:`${course.id}-${lessonIndex}`,courseId:course.id,courseTitle:course.title,title:lesson[0],description:lesson[1],imageIndex:courseIndex*3+lessonIndex,
+})));
 export const combatSkills=Array.from({length:28},(_,i)=>({id:i+1,name:['Corte umbral','Guardia espectral','Lectura táctica','Pulso de control'][i%4]+' '+(Math.floor(i/4)+1),type:['Ataque','Defensa','Táctica','Control'][i%4],power:8+(i%7)*2,unlocked:i<8}));
 export const minigames=['Memoria de runas','Reflejo relámpago','Cálculo veloz','Foco sostenido','Tiro preciso','Decisión táctica','Secuencia sombra','Reacción dual','Patrón oculto','Pulso estable'];
 export const avatarPresets = [

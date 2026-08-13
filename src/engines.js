@@ -1,5 +1,5 @@
-import { exerciseCatalog, foodCatalog, habitCatalog, catalogById, mealPresetsForSlot } from './catalogs.js?v=15';
-import { intellectAdaptiveQuestions, intellectCoreQuestions, intellectRoutes, sportCatalog } from './data.js?v=15';
+import { exerciseCatalog, foodCatalog, habitCatalog, catalogById, mealPresetsForSlot } from './catalogs.js?v=16';
+import { intellectAdaptiveQuestions, intellectCoreQuestions, intellectRoutes, sportCatalog } from './data.js?v=16';
 
 export function buildIntellectAssessment(preference = 'logic') {
   const selected = intellectRoutes[preference] ? preference : 'logic';
@@ -157,7 +157,7 @@ export function trainingForDate(state, date = new Date()) {
 
 export function generateDailyMissions(state, date = new Date(), variant = 0) {
   const dateKey = localDateKey(date), seed = dateSeed(dateKey) + variant * 11;
-  const weak = [...(state.skills || [])].sort((a, b) => a.score - b.score).slice(0, 5);
+  const weak = [...(state.skills || [])].filter(skill=>skill.attr==='Intelecto').sort((a, b) => a.score - b.score).slice(0, 5);
   const primarySkill = weak[seed % Math.max(1, weak.length)] || { name: 'Foco profundo' };
   const training = trainingForDate(state, date);
   const cognitive = [
@@ -175,6 +175,20 @@ export function generateDailyMissions(state, date = new Date(), variant = 0) {
     { title: 'Base de energía', detail: 'Completá agua, proteína y dos porciones de vegetales', xp: 65, emoji: '🥗' },
     { title: 'Descanso estratégico', detail: 'Prepará una hora de sueño sin pantallas ni trabajo pendiente', xp: 65, emoji: '🌙' },
   ];
+  const social = [
+    { title: 'Escucha que construye', detail: 'Tené una conversación de 10 minutos sin interrumpir y resumí lo que entendiste', xp: 65, emoji: '👂' },
+    { title: 'Mensaje claro', detail: 'Comunicá un pedido real con contexto, acción concreta y plazo', xp: 65, emoji: '💬' },
+    { title: 'Reconocimiento específico', detail: 'Decile a una persona qué conducta concreta valoraste y por qué', xp: 60, emoji: '🤝' },
+    { title: 'Conversación pendiente', detail: 'Abrí una conversación postergada con respeto, escucha y un próximo paso', xp: 70, emoji: '🗣️' },
+    { title: 'Presencia social', detail: 'En una interacción importante, guardá el teléfono y hacé dos preguntas genuinas', xp: 60, emoji: '✨' },
+  ];
+  const performance = [
+    { title: 'Prioridad cerrada', detail: 'Terminá la tarea de mayor impacto antes de abrir una nueva', xp: 70, emoji: '✅' },
+    { title: 'Bloque de ejecución', detail: 'Trabajá 30 minutos sobre un resultado concreto y registrá qué quedó terminado', xp: 70, emoji: '⚡' },
+    { title: 'Fricción eliminada', detail: 'Detectá un obstáculo repetido y modificá hoy el entorno para que no se repita', xp: 65, emoji: '🛠️' },
+    { title: 'Promesa diaria', detail: 'Elegí un compromiso pequeño, definí su hora y cumplilo antes de cerrar el día', xp: 65, emoji: '🛡️' },
+    { title: 'Revisión y ajuste', detail: 'Medí un resultado de hoy y cambiá una sola variable para mañana', xp: 65, emoji: '📈' },
+  ];
   const closures = [
     { title: 'Cierre del Sistema', detail: 'Registrá un aprendizaje y el próximo paso de mañana', xp: 60, emoji: '📓' },
     { title: 'Orden de diez minutos', detail: 'Dejá listo el espacio que vas a usar mañana', xp: 55, emoji: '🧹' },
@@ -187,11 +201,38 @@ export function generateDailyMissions(state, date = new Date(), variant = 0) {
   const selected = [
     { ...cognitive[seed % cognitive.length], category: 'Intelecto' },
     training
-      ? { title: `Completar ${training.enabled?training.title:training.sport.name}`, detail: training.enabled&&training.sport?`${training.exercises.length} ejercicios de gimnasio + ${training.sport.name}`:training.enabled?`${training.exercises.length} ejercicios · ${state.training.settings.duration} minutos programados`:`${training.sport.emoji} ${training.sport.duration} min · carga ${training.sport.intensityLabel.toLowerCase()}`, xp: 100, emoji: training.sport?.emoji||'🏋️', category: 'Entrenamiento' }
-      : { ...recovery[(seed + 1) % recovery.length], category: 'Recuperación' },
-    { ...closures[(seed + 2) % closures.length], category: 'Vida diaria' },
+      ? { title: `Completar ${training.enabled?training.title:training.sport.name}`, detail: training.enabled&&training.sport?`${training.exercises.length} ejercicios de gimnasio + ${training.sport.name}`:training.enabled?`${training.exercises.length} ejercicios · ${state.training.settings.duration} minutos programados`:`${training.sport.emoji} ${training.sport.duration} min · carga ${training.sport.intensityLabel.toLowerCase()}`, xp: 100, emoji: training.sport?.emoji||'🏋️', category: 'Físico' }
+      : { ...recovery[(seed + 1) % recovery.length], category: 'Físico' },
+    { ...social[(seed + 2) % social.length], category: 'Carisma' },
+    { ...performance[(seed + 3) % performance.length], category: 'Rendimiento' },
   ];
   return selected.map((mission, index) => ({ id: `mission-${dateKey}-${variant}-${index}`, dateKey, ...mission, status: 'open' }));
+}
+
+const purchaseQuantity=(quantity,unit)=>{
+  const amount=Math.round((Number(quantity)||0)*10)/10;
+  if(['unidad','rebanada'].includes(unit))return{quantity:Math.ceil(amount),unit};
+  if(unit==='g'&&amount>=1000)return{quantity:Math.round(amount/100)/10,unit:'kg'};
+  if(unit==='ml'&&amount>=1000)return{quantity:Math.round(amount/100)/10,unit:'L'};
+  return{quantity:amount,unit};
+};
+
+export function buildShoppingList(state={}){
+  const aggregated=new Map();
+  for(const day of state.nutrition?.weeklyPlan||[])for(const meal of day.meals||[])for(const item of meal.foods||[]){
+    const food=item.custom?item:catalogById(foodCatalog,item.foodId);
+    if(!food)continue;
+    const name=food.name||'Ingrediente propio',unit=item.unit||food.unit||'unidad',key=`${String(name).toLocaleLowerCase('es')}|${unit}`;
+    const current=aggregated.get(key)||{id:key,name,emoji:food.emoji||'🧺',category:food.category||'Comidas propias',unit,quantity:0,uses:0};
+    current.quantity+=Number(item.quantity)||0;current.uses+=1;aggregated.set(key,current);
+  }
+  const groups=new Map();
+  for(const item of aggregated.values()){
+    const formatted=purchaseQuantity(item.quantity,item.unit),entry={...item,...formatted};
+    if(!groups.has(item.category))groups.set(item.category,[]);
+    groups.get(item.category).push(entry);
+  }
+  return[...groups.entries()].map(([category,items])=>({category,items:items.sort((a,b)=>a.name.localeCompare(b.name,'es'))})).sort((a,b)=>a.category.localeCompare(b.category,'es'));
 }
 
 const habitWeekDays = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];

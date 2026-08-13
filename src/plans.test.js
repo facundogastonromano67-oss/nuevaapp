@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { assessmentQuestions } from './assessment.js';
-import { advanceAttributeProgress, attributeForActivity, attributeXpRequirement, buildHabitSchedule, buildIntellectAssessment, buildNutritionWeek, buildTrainingDay, buildTrainingPlan, calculateFoodNutrition, calculateHardcorePenalty, calculateMealNutrition, calculateNutritionTargets, calibratedInitialLevel, createArenaBattle, createDailyAssignment, createWorkoutExercise, effortProgression, exerciseRestSeconds, formatMealIngredients, generateDailyHabits, generateDailyMissions, localDateKey, repetitionProgression, resolveArenaTurn, scoreInitialAttributes, scoreIntellectAssessment, sportScheduleFromAnswers, transactXp } from './engines.js';
+import { advanceAttributeProgress, attributeForActivity, attributeXpRequirement, buildHabitSchedule, buildIntellectAssessment, buildNutritionWeek, buildShoppingList, buildTrainingDay, buildTrainingPlan, calculateFoodNutrition, calculateHardcorePenalty, calculateMealNutrition, calculateNutritionTargets, calibratedInitialLevel, createArenaBattle, createDailyAssignment, createWorkoutExercise, effortProgression, exerciseRestSeconds, formatMealIngredients, generateDailyHabits, generateDailyMissions, localDateKey, repetitionProgression, resolveArenaTurn, scoreInitialAttributes, scoreIntellectAssessment, sportScheduleFromAnswers, transactXp } from './engines.js';
 import { exerciseCatalog, foodCatalog, habitCatalog, mealPresetCatalog } from './catalogs.js';
 import { intellectRoutes } from './data.js';
 
@@ -94,6 +94,16 @@ describe('bibliotecas de personalización', () => {
     expect(calculateMealNutrition([{ foodId: 'egg', quantity: 2 }, { foodId: 'bread', quantity: 2 }])).toMatchObject({ kcal: 300, p: 20 });
   });
 
+  it('suma ingredientes de toda la semana y los convierte en cantidades de compra', () => {
+    const list=buildShoppingList({nutrition:{weeklyPlan:[
+      {meals:[{foods:[{foodId:'chicken',quantity:600},{foodId:'rice',quantity:300}]}]},
+      {meals:[{foods:[{foodId:'chicken',quantity:500},{foodId:'rice',quantity:250}]}]},
+    ]}});
+    const items=list.flatMap(group=>group.items);
+    expect(items.find(item=>item.name==='Pechuga de pollo')).toMatchObject({quantity:1.1,unit:'kg',uses:2});
+    expect(items.find(item=>item.name==='Arroz cocido')).toMatchObject({quantity:550,unit:'g',uses:2});
+  });
+
   it('acepta ingredientes propios y recetas de milanesa', () => {
     const custom={custom:true,foodId:'custom-milanesa',name:'Milanesa casera',unit:'g',baseAmount:100,quantity:180,kcal:230,p:20,c:12,f:11};
     expect(calculateMealNutrition([custom])).toMatchObject({kcal:414,p:36});
@@ -143,6 +153,12 @@ describe('asignación diaria', () => {
     expect(localDateKey(tuesday)).toBe('2026-08-11');
     expect(generateDailyMissions(dailyState, monday).map(item => item.id)).not.toEqual(generateDailyMissions(dailyState, tuesday).map(item => item.id));
     expect(generateDailyHabits(dailyState, monday).map(item => item.catalogId)).not.toEqual(generateDailyHabits(dailyState, tuesday).map(item => item.catalogId));
+  });
+
+  it('ofrece cada día una misión para los cuatro atributos', () => {
+    const missions=generateDailyMissions(dailyState,monday);
+    expect(missions).toHaveLength(4);
+    expect(new Set(missions.map(mission=>attributeForActivity('mission',mission.category,mission.title)))).toEqual(new Set(['Intelecto','Carisma','Rendimiento','Físico']));
   });
 
   it('agrega la rutina sólo en días con entrenamiento y conserva hábitos personalizados', () => {
