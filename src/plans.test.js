@@ -248,4 +248,15 @@ describe('Arena por rondas', () => {
     expect(next.enemyHp).toBeLessThan(100);
     expect(createArenaBattle(state, 'dungeon')).toBe(null);
   });
+
+  it('limita movimientos fuertes a un uso y entrega boosts tácticos', () => {
+    const skill = { id: 99, name: 'Impacto máximo', power: 18 };
+    const battle = createArenaBattle({ arena: { rating: 1000, deck: [99], skills: [skill] } }, 'system', .2);
+    const first = resolveArenaTurn(battle, skill, null, 0);
+    expect(first.skillUses[99]).toBe(0);
+    const repeated = resolveArenaTurn(first, skill, null, 0);
+    expect(repeated.enemyHp).toBe(first.enemyHp);
+    expect(repeated.log[0]).toContain('no tiene usos');
+    expect(battle.boosts.every(boost => boost.unlocked && !boost.used)).toBe(true);
+  });
 });

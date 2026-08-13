@@ -1,5 +1,5 @@
-import { exerciseCatalog, foodCatalog, habitCatalog, catalogById, mealPresetsForSlot } from './catalogs.js?v=16';
-import { intellectAdaptiveQuestions, intellectCoreQuestions, intellectRoutes, sportCatalog } from './data.js?v=16';
+import { exerciseCatalog, foodCatalog, habitCatalog, catalogById, mealPresetsForSlot } from './catalogs.js?v=17';
+import { intellectAdaptiveQuestions, intellectCoreQuestions, intellectRoutes, sportCatalog } from './data.js?v=17';
 
 export function buildIntellectAssessment(preference = 'logic') {
   const selected = intellectRoutes[preference] ? preference : 'logic';
@@ -313,11 +313,14 @@ export function createArenaBattle(state, mode = 'system', roll = .5) {
   const rating = Number(state?.arena?.rating) || 1000;
   const rivalNames = mode === 'pvp' ? ['Cazador Carmesí', 'Centinela Nocturno', 'Monarca Errante'] : ['Guardián del Sistema', 'Bestia de Prueba', 'Caballero de las Sombras'];
   const enemyPower = Math.round(13 + rating / 160 + roll * 5);
+  const activeSkills=(state?.arena?.deck||[]).map(id=>state?.arena?.skills?.find(skill=>skill.id===id)).filter(Boolean);
   return {
     id: `battle-${Date.now()}`, mode, status: 'active', round: 1,
     playerHp: 100, enemyHp: 100, enemyPower,
     enemyName: rivalNames[Math.min(rivalNames.length - 1, Math.floor(roll * rivalNames.length))],
-    boosts: arenaBoosts.map(boost => ({ ...boost, unlocked: false, used: false })),
+    boosts: arenaBoosts.map(boost => ({ ...boost, unlocked: true, used: false })),
+    skillUses:Object.fromEntries(activeSkills.map(skill=>[skill.id,skill.power>=16?1:2])),
+    turnLimit:8,
     selectedBoost: null,
     log: [`La simulación comenzó contra ${rivalNames[Math.min(rivalNames.length - 1, Math.floor(roll * rivalNames.length))]}.`],
   };
@@ -326,6 +329,12 @@ export function createArenaBattle(state, mode = 'system', roll = .5) {
 export function resolveArenaTurn(battle, skill, boostId = null, roll = .5) {
   if (!battle || battle.status !== 'active' || !skill) return battle;
   const next = structuredClone(battle);
+  const usageKey=skill.id??skill.name;
+  const hasLimit=Object.prototype.hasOwnProperty.call(next.skillUses||{},usageKey);
+  const remaining=hasLimit?Number(next.skillUses[usageKey]):1;
+  if(remaining<=0){next.log.unshift(`${skill.name} ya no tiene usos disponibles.`);return next;}
+  next.skillUses=next.skillUses||{};
+  next.skillUses[usageKey]=remaining-1;
   const boost = next.boosts.find(item => item.id === boostId && item.unlocked && !item.used);
   let attackMultiplier = 1, defenseMultiplier = 1;
   if (boost?.id === 'fury') attackMultiplier = 1.45;
@@ -349,6 +358,7 @@ export function resolveArenaTurn(battle, skill, boostId = null, roll = .5) {
     next.status = 'defeat';
     next.log.unshift('La simulación terminó. Revisá tu estrategia y volvé a intentarlo.');
   }
+  else if(next.round>next.turnLimit){next.status='defeat';next.log.unshift('Se agotaron los 8 turnos de la simulación.');}
   return next;
 }
 
