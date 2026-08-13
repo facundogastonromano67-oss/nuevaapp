@@ -3,7 +3,7 @@ import { buildHabitSchedule, buildNutritionWeek, buildTrainingDay, buildTraining
 import { catalogById, exerciseCatalog, mealPresetCatalog } from './catalogs.js';
 
 const KEY = 'facu-owner-v1';
-const VERSION = 11;
+const VERSION = 12;
 const defaultAnswers = {
   sex: 'male', activity: 'light', goal: 'performance', routineType: 'full-body',
   planMode: 'normal',
