@@ -41,20 +41,20 @@ export const intellectRoutes = {
 };
 
 export const intellectMemoryStimulus = [
-  ['LUNA', '4'], ['RÍO', '7'], ['SOL', '2'], ['NUBE', '9'], ['BOSQUE', '5'],
+  ['LUNA', '4'], ['RÍO', '7'], ['SOL', '2'], ['NUBE', '9'], ['BOSQUE', '5'], ['FARO','8'], ['ROCA','3'], ['VIENTO','6'],
 ];
 
 export const intellectCoreQuestions = [
-  iq('focus-count', 'Foco profundo', 'Atención', 'En la secuencia 8 · 3 · 8 · 1 · 8 · 6, ¿cuántas veces aparece el 8?', [['2'], ['3', true], ['4']]),
-  iq('focus-match', 'Foco profundo', 'Atención', '¿Cuál cadena es exactamente igual a K7M2Q9?', [['K7N2Q9'], ['K7M2Q9', true], ['K7M2O9']]),
-  iq('critical-sequence', 'Pensamiento crítico', 'Pensamiento crítico', 'Completá la regla: 2 · 6 · 12 · 20 · ?', [['26'], ['30', true], ['32']]),
-  iq('critical-logic', 'Pensamiento crítico', 'Pensamiento crítico', 'Todas las runas son señales y algunas señales son azules. ¿Todas las runas son azules?', [['No se puede afirmar', true], ['Sí'], ['Ninguna runa es azul']]),
-  iq('memory-river', 'Memoria', 'Memoria de trabajo', '¿Qué número acompañaba a RÍO?', [['4'], ['7', true], ['9']]),
-  iq('memory-sun', 'Memoria', 'Memoria de trabajo', '¿Qué palabra acompañaba al número 2?', [['SOL', true], ['LUNA'], ['BOSQUE']]),
-  iq('learning-rule', 'Aprendizaje', 'Aprendizaje', 'Regla nueva: todo símbolo azul vale el doble. Si un triángulo azul vale 4 de base, ¿cuál es su valor final?', [['6'], ['8', true], ['12']]),
-  iq('learning-feedback', 'Aprendizaje', 'Aprendizaje', 'Probaste una estrategia y falló dos veces del mismo modo. ¿Qué acción genera mejor aprendizaje?', [['Repetirla sin cambios'], ['Comparar el error, ajustar una variable y volver a probar', true], ['Cambiar de objetivo inmediatamente']]),
-  iq('planning-order', 'Planificación', 'Planificación', 'Para enviar un informe primero necesitás revisarlo, y para revisarlo necesitás un borrador. ¿Qué va primero?', [['Enviar'], ['Revisar'], ['Crear el borrador', true]]),
-  iq('planning-time', 'Planificación', 'Planificación', 'Tenés 25 minutos y tareas de 15, 10 y 20 minutos. ¿Qué opción completa más tareas sin superar el tiempo?', [['La tarea de 20'], ['Las tareas de 15 y 10', true], ['Las tres tareas']]),
+  iq('focus-count', 'Foco profundo', 'Atención', 'En 7·2·7·7·2·1·7·2·2·7, ¿cuántas veces aparece un 7 seguido inmediatamente por un 2?', [['2'], ['3', true], ['4']]),
+  iq('focus-match', 'Foco profundo', 'Atención', '¿Cuál cadena coincide exactamente con Q7M2-K9R4-T6?', [['Q7M2-K9R4-TG'], ['Q7M2-K9R4-T6', true], ['Q7N2-K9R4-T6']]),
+  iq('critical-sequence', 'Pensamiento crítico', 'Pensamiento crítico', 'Completá la regla: 3 · 8 · 18 · 38 · ?', [['68'], ['76'], ['78', true]]),
+  iq('critical-logic', 'Pensamiento crítico', 'Pensamiento crítico', 'Ningún informe aprobado tiene errores críticos. Este informe tiene un error crítico. ¿Qué se deduce necesariamente?', [['No fue aprobado', true], ['Fue revisado'], ['Tiene más de un error']]),
+  iq('memory-river', 'Memoria', 'Memoria de trabajo', '¿Qué número acompañaba a FARO?', [['6'], ['8', true], ['3']]),
+  iq('memory-sun', 'Memoria', 'Memoria de trabajo', '¿Qué palabra acompañaba al número 3?', [['ROCA', true], ['NUBE'], ['VIENTO']]),
+  iq('learning-rule', 'Aprendizaje', 'Aprendizaje', 'Regla nueva: primero duplicá el valor y después restá 3. Si la base es 7, ¿cuál es el resultado?', [['10'], ['11', true], ['17']]),
+  iq('learning-feedback', 'Aprendizaje', 'Aprendizaje', 'Dos métodos mejoran un resultado, pero fueron probados con dificultades distintas. ¿Qué comparación permite aprender mejor?', [['Elegir el mayor número final'], ['Repetir ambos bajo condiciones equivalentes y medir el cambio', true], ['Usar el método más nuevo']]),
+  iq('planning-order', 'Planificación', 'Planificación', 'B depende de A; D depende de B y C. Si A y C pueden hacerse en paralelo, ¿qué secuencia termina antes?', [['A → B → C → D'], ['A y C → B → D', true], ['D → B → A y C']]),
+  iq('planning-time', 'Planificación', 'Planificación', 'Tenés 45 minutos. A dura 20, B 15 y C 10; B debe hacerse antes que C. ¿Qué plan completa las tres?', [['A → C → B'], ['B → A → C', true], ['C → B → A']]),
 ];
 
 export const intellectAdaptiveQuestions = {
@@ -79,6 +79,18 @@ export const intellectAdaptiveQuestions = {
     iq('learning-extra-recall', 'Aprendizaje', 'Ruta elegida', '¿Qué práctica suele comprobar mejor si entendiste una idea?', [['Releerla muchas veces'], ['Explicarla sin mirar y detectar vacíos', true], ['Subrayar todo el texto']]),
   ],
 };
+
+const scenario=(id,attribute,prompt,options)=>({id,attribute,prompt,options:options.map(([label,value])=>({label,value}))});
+export const characterEvidenceQuestions=[
+  scenario('charisma_conflict','Carisma','Un compañero rechaza tu propuesta delante del grupo. ¿Qué hacés primero?',[["Defiendo mi posición hasta que acepte",0],["Le pido que explique su objeción y reformulo el punto en común",3],["Evito responder y cambio de tema",1],["Le doy la razón aunque no la comparta",1]]),
+  scenario('charisma_clarity','Carisma','Tenés que explicar una idea compleja a alguien sin experiencia. ¿Cómo comprobás que se entendió?',[["Uso todos los términos técnicos",0],["La explico con un ejemplo y le pido que la reconstruya con sus palabras",3],["La repito más fuerte",0],["Pregunto solamente si entendió",1]]),
+  scenario('charisma_listening','Carisma','En una conversación importante notás que estás preparando tu respuesta mientras la otra persona habla.',[["Interrumpo para no perder mi idea",0],["Anoto una palabra clave y vuelvo a escuchar antes de responder",3],["Asiento aunque no siga el hilo",1],["Cambio a un tema que manejo mejor",0]]),
+  scenario('charisma_leadership','Carisma','Un equipo está trabado y hay opiniones enfrentadas.',[["Decido solo para ahorrar tiempo",1],["Sintetizo criterios, asigno un próximo paso verificable y fijo una revisión",3],["Espero que alguien tome el control",0],["Busco que todos estén de acuerdo antes de avanzar",2]]),
+  scenario('performance_recovery','Rendimiento','Incumpliste dos días seguidos una tarea importante. ¿Qué hacés?',[["Abandono el plan porque ya falló",0],["Compenso haciendo el triple mañana",1],["Identifico el obstáculo, reduzco el próximo paso y retomo hoy",3],["Espero al lunes para reiniciar",0]]),
+  scenario('performance_priority','Rendimiento','Aparecen tres urgencias mientras trabajás en tu prioridad principal.',[["Cambio entre las cuatro tareas",0],["Evalúo impacto y plazo, resuelvo o delego lo crítico y protejo un bloque para la prioridad",3],["Respondo primero lo más reciente",1],["Ignoro todo lo nuevo",1]]),
+  scenario('performance_focus','Rendimiento','Durante un bloque de trabajo revisaste el teléfono cinco veces.',[["Confío en tener más voluntad la próxima vez",1],["Alejo el teléfono, bloqueo avisos y reinicio un bloque más corto medible",3],["Sigo trabajando con el teléfono a la vista",0],["Doy el día por perdido",0]]),
+  scenario('performance_measure','Rendimiento','Una estrategia se siente productiva, pero no mejora el resultado durante dos semanas.',[["La mantengo porque exige esfuerzo",1],["Defino una métrica, cambio una variable y comparo el siguiente ciclo",3],["Cambio todo el sistema al mismo tiempo",0],["Dejo de medir para evitar presión",0]]),
+];
 
 export const sportCatalog = [
   {id:'football',name:'Fútbol',emoji:'⚽',lowerLoad:'high',impact:'high'},

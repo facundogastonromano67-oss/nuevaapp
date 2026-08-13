@@ -21,7 +21,8 @@ describe('migración defensiva del estado', () => {
     });
 
     expect(migrated.onboarded).toBe(false);
-    expect(migrated.assessmentVersion).toBe(3);
+    expect(migrated.assessmentVersion).toBe(4);
+    expect(migrated.attributeLevels.Intelecto).toBeGreaterThanOrEqual(1);
     expect(migrated.profile.name).toBe('FACU');
     expect(migrated.training.settings.duration).toBe(40);
     expect(migrated.training.exercises.length).toBeGreaterThan(0);

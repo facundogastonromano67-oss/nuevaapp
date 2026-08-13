@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { assessmentQuestions } from './assessment.js';
-import { attributeForActivity, buildHabitSchedule, buildIntellectAssessment, buildNutritionWeek, buildTrainingDay, buildTrainingPlan, calculateFoodNutrition, calculateHardcorePenalty, calculateMealNutrition, calculateNutritionTargets, createArenaBattle, createDailyAssignment, createWorkoutExercise, effortProgression, exerciseRestSeconds, formatMealIngredients, generateDailyHabits, generateDailyMissions, localDateKey, repetitionProgression, resolveArenaTurn, scoreIntellectAssessment, sportScheduleFromAnswers, transactXp } from './engines.js';
+import { advanceAttributeProgress, attributeForActivity, attributeXpRequirement, buildHabitSchedule, buildIntellectAssessment, buildNutritionWeek, buildTrainingDay, buildTrainingPlan, calculateFoodNutrition, calculateHardcorePenalty, calculateMealNutrition, calculateNutritionTargets, calibratedInitialLevel, createArenaBattle, createDailyAssignment, createWorkoutExercise, effortProgression, exerciseRestSeconds, formatMealIngredients, generateDailyHabits, generateDailyMissions, localDateKey, repetitionProgression, resolveArenaTurn, scoreInitialAttributes, scoreIntellectAssessment, sportScheduleFromAnswers, transactXp } from './engines.js';
 import { exerciseCatalog, foodCatalog, habitCatalog, mealPresetCatalog } from './catalogs.js';
 import { intellectRoutes } from './data.js';
 
@@ -28,8 +28,18 @@ describe('evaluación guiada', () => {
     const answers = Object.fromEntries(questions.map(question => [question.id, 1]));
     const report = scoreIntellectAssessment(answers, 'memory');
     expect(report).toMatchObject({ totalCorrect: 12, totalQuestions: 12, routeSkill: 'Memoria' });
-    expect(report.results.Memoria).toMatchObject({ correct: 4, total: 4, score: 100 });
-    expect(report.results.Planificación).toMatchObject({ correct: 2, total: 2, score: 100 });
+    expect(report).toMatchObject({ initialLevel: 60 });
+    expect(report.results.Memoria).toMatchObject({ correct: 4, total: 4, score: 60 });
+    expect(report.results.Planificación).toMatchObject({ correct: 2, total: 2, score: 60 });
+  });
+
+  it('calibra el inicio entre 1 y 60 y hace más caro progresar en niveles altos', () => {
+    expect(calibratedInitialLevel(0)).toBe(1);
+    expect(calibratedInitialLevel(1)).toBe(60);
+    expect(calibratedInitialLevel(11/12)).toBeLessThan(60);
+    expect(attributeXpRequirement(80)).toBeGreaterThan(attributeXpRequirement(46));
+    expect(advanceAttributeProgress(46,0,attributeXpRequirement(46))).toMatchObject({level:47,xp:0});
+    expect(scoreInitialAttributes({intellectReport:{initialLevel:1},physical:{pushups:0,squats:0,plank:0,km:40},evidence:{}})).toEqual({Intelecto:1,Carisma:1,Rendimiento:1,Físico:1});
   });
 });
 

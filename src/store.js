@@ -1,9 +1,9 @@
-import { attributes, combatSkills } from './data.js?v=14';
-import { buildHabitSchedule, buildNutritionWeek, buildTrainingDay, buildTrainingPlan, calculateHardcorePenalty, calculateNutritionTargets, createDailyAssignment, effortProgression, generateDailyHabits, localDateKey, repetitionProgression, stageForDay, transactXp } from './engines.js?v=14';
-import { catalogById, exerciseCatalog, mealPresetCatalog } from './catalogs.js?v=14';
+import { attributes, combatSkills } from './data.js?v=15';
+import { attributeProgress, buildHabitSchedule, buildNutritionWeek, buildTrainingDay, buildTrainingPlan, calculateHardcorePenalty, calculateNutritionTargets, createDailyAssignment, effortProgression, generateDailyHabits, localDateKey, repetitionProgression, stageForDay, transactXp } from './engines.js?v=15';
+import { catalogById, exerciseCatalog, mealPresetCatalog } from './catalogs.js?v=15';
 
 const KEY = 'facu-owner-v1';
-const VERSION = 14;
+const VERSION = 15;
 const defaultAnswers = {
   sex: 'male', activity: 'light', goal: 'performance', routineType: 'full-body',
   planMode: 'normal',
@@ -31,7 +31,7 @@ export const initialState = () => {
   const nutritionWeek = buildNutritionWeek(targets, defaultAnswers);
   const state = {
     version: VERSION,
-    assessmentVersion: 3,
+    assessmentVersion: 4,
     onboarded: false,
     profile,
     onboardingAnswers: {},
@@ -40,6 +40,7 @@ export const initialState = () => {
     xp: 860,
     xpLedger: [],
     attributeXp: { Intelecto: 0, Carisma: 0, Rendimiento: 0, Físico: 0 },
+    attributeLevels: { Intelecto: 1, Carisma: 1, Rendimiento: 1, Físico: 1 },
     plan: {
       mode: 'normal', status: 'draft', locked: false, generatedAt: 0, acceptedAt: 0,
       rewards: { habit: 25, meal: 20, training: 180 },
@@ -98,6 +99,7 @@ export function migrateState(saved) {
     daily: { ...fresh.daily, ...saved.daily },
     ui: { ...fresh.ui, ...saved.ui },
     attributeXp: { ...fresh.attributeXp, ...saved.attributeXp },
+    attributeLevels: { ...fresh.attributeLevels, ...saved.attributeLevels },
   };
   for (const key of ['tasks', 'habits', 'skills', 'missions', 'history', 'notes']) if (!Array.isArray(merged[key])) merged[key] = fresh[key];
   if (!Array.isArray(merged.xpLedger)) merged.xpLedger = [];
@@ -113,6 +115,18 @@ export function migrateState(saved) {
   if ((Number(saved.assessmentVersion) || 0) < 3) {
     merged.onboarded = false;
     merged.assessmentVersion = 3;
+  }
+  if ((Number(saved.assessmentVersion) || 0) < 4) {
+    merged.onboarded = false;
+    merged.assessmentVersion = 4;
+  }
+  if (oldVersion < 15) {
+    for (const attribute of Object.keys(fresh.attributeLevels)) {
+      const skills = merged.skills.filter(skill => skill.attr === attribute);
+      const average = Math.round(skills.reduce((sum, skill) => sum + (Number(skill.score) || 0), 0) / Math.max(1, skills.length));
+      merged.attributeLevels[attribute] = Math.max(1, Math.min(60, average || 1));
+      merged.attributeXp[attribute] = attributeProgress(merged.attributeLevels[attribute], merged.attributeXp[attribute]).current;
+    }
   }
   if (oldVersion < 5) {
     const enabledDays = Array.isArray(saved.training?.weeklyPlan) ? saved.training.weeklyPlan.filter(day => day.enabled).map(day => day.day) : defaultAnswers.trainingDays;

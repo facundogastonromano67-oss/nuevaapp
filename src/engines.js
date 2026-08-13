@@ -1,5 +1,5 @@
-import { exerciseCatalog, foodCatalog, habitCatalog, catalogById, mealPresetsForSlot } from './catalogs.js?v=14';
-import { intellectAdaptiveQuestions, intellectCoreQuestions, intellectRoutes, sportCatalog } from './data.js?v=14';
+import { exerciseCatalog, foodCatalog, habitCatalog, catalogById, mealPresetsForSlot } from './catalogs.js?v=15';
+import { intellectAdaptiveQuestions, intellectCoreQuestions, intellectRoutes, sportCatalog } from './data.js?v=15';
 
 export function buildIntellectAssessment(preference = 'logic') {
   const selected = intellectRoutes[preference] ? preference : 'logic';
@@ -19,14 +19,57 @@ export function scoreIntellectAssessment(answers = {}, preference = 'logic') {
     result.total += 1;
     if (Number(answers[question.id]) === 1) result.correct += 1;
   }
-  Object.values(results).forEach(result => result.score = Math.round(result.correct / Math.max(1, result.total) * 100));
+  Object.values(results).forEach(result => result.score = calibratedInitialLevel(result.correct / Math.max(1, result.total)));
+  const totalCorrect=Object.values(results).reduce((sum, result) => sum + result.correct, 0);
   return {
     preference: intellectRoutes[preference] ? preference : 'logic',
     routeLabel: route.label,
     routeSkill: route.skill,
-    totalCorrect: Object.values(results).reduce((sum, result) => sum + result.correct, 0),
+    totalCorrect,
     totalQuestions: questions.length,
+    initialLevel: calibratedInitialLevel(totalCorrect / Math.max(1, questions.length)),
     results,
+  };
+}
+
+export function calibratedInitialLevel(ratio=0){
+  const normalized=Math.max(0,Math.min(1,Number(ratio)||0));
+  return normalized===0?1:Math.max(1,Math.min(60,Math.round(1+59*Math.pow(normalized,2.35))));
+}
+
+export function attributeXpRequirement(level=1){
+  const safeLevel=Math.max(1,Math.min(100,Math.floor(Number(level)||1)));
+  return Math.round(200+18*safeLevel+.12*safeLevel*safeLevel);
+}
+
+export function attributeProgress(level=1,xp=0){
+  const safeLevel=Math.max(1,Math.min(100,Math.floor(Number(level)||1))),need=attributeXpRequirement(safeLevel),current=Math.max(0,Math.min(need-1,Number(xp)||0));
+  return{level:safeLevel,current,need,percent:safeLevel>=100?100:Math.round(current/need*100)};
+}
+
+export function advanceAttributeProgress(level=1,xp=0,delta=0){
+  let nextLevel=Math.max(1,Math.min(100,Math.floor(Number(level)||1))),current=Math.max(0,Number(xp)||0)+(Number(delta)||0);
+  const before=attributeProgress(nextLevel,xp);
+  while(nextLevel<100&&current>=attributeXpRequirement(nextLevel)){current-=attributeXpRequirement(nextLevel);nextLevel+=1;}
+  while(nextLevel>1&&current<0){nextLevel-=1;current+=attributeXpRequirement(nextLevel);}
+  if(nextLevel===1&&current<0)current=0;
+  if(nextLevel>=100){nextLevel=100;current=0;}
+  const after=attributeProgress(nextLevel,current);
+  return{before,after,level:after.level,xp:after.current,levelDelta:after.level-before.level};
+}
+
+export function scoreInitialAttributes({intellectReport,physical={},evidence={}}={}){
+  const clamp=value=>Math.max(0,Math.min(1,value));
+  const scenarioLevel=attribute=>{
+    const values=Object.entries(evidence).filter(([key])=>key.startsWith(`${attribute}_`)).map(([,value])=>clamp(Number(value)/3));
+    return calibratedInitialLevel(values.reduce((sum,value)=>sum+value,0)/Math.max(1,values.length));
+  };
+  const pushups=clamp((Number(physical.pushups)||0)/45),squats=clamp((Number(physical.squats)||0)/60),plank=clamp((Number(physical.plank)||0)/150),km=clamp((14-(Number(physical.km)||40))/9.5);
+  return{
+    Intelecto:Math.max(1,Math.min(60,Number(intellectReport?.initialLevel)||1)),
+    Carisma:scenarioLevel('charisma'),
+    Rendimiento:scenarioLevel('performance'),
+    Físico:calibratedInitialLevel((pushups+squats+plank+km)/4),
   };
 }
 
@@ -469,5 +512,5 @@ export function scoreAssessment(answers = {}) {
   const sleep = { under6: -8, '6to7': -3, '7to8': 5, over8: 4 }[answers.sleep] || 0;
   const experience = { beginner: -4, novice: 0, intermediate: 6, advanced: 10 }[answers.experience] || 0;
   const activity = { low: -4, light: 0, moderate: 5, high: 8 }[answers.activity] || 0;
-  return { Intelecto: 48, Carisma: 46, Rendimiento: 50 + sleep, Físico: 48 + experience + activity };
+  return { Intelecto: 12, Carisma: 12, Rendimiento: Math.max(1, 18 + sleep), Físico: Math.max(1, 18 + experience + activity) };
 }

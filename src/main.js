@@ -1,5 +1,5 @@
-import { render } from './views.js?v=14';
-import { ensureDailyRollover } from './store.js?v=14';
+import { render } from './views.js?v=15';
+import { ensureDailyRollover } from './store.js?v=15';
 
 const root = document.querySelector('#app');
 

@@ -48,6 +48,14 @@ export const foodCatalog = [
   ['Grasas','olive-oil','🫒','Aceite de oliva','cucharada',1,119,0,0,13.5],['Grasas','avocado','🥑','Palta','g',100,160,2,8.5,14.7],['Grasas','peanuts','🥜','Maní','g',30,170,7,6,14],['Grasas','almonds','🌰','Almendras','g',30,174,6.4,6.5,15],['Grasas','peanut-butter','🥜','Mantequilla de maní','cucharada',1,95,3.5,3.5,8],
 ].map(([category,id,emoji,name,unit,baseAmount,kcal,p,c,f])=>({category,id,emoji,name,unit,baseAmount,kcal,p,c,f}));
 
+foodCatalog.push(...[
+  ['Proteínas','white-fish','🐟','Merluza al horno','g',100,112,24,0,1.5],['Proteínas','shrimp','🦐','Camarones cocidos','g',100,99,24,.2,.3],
+  ['Lácteos','ricotta','🧀','Ricota magra','g',100,138,11,5,8],['Lácteos','mozzarella','🧀','Mozzarella','g',100,280,28,3,17],
+  ['Carbohidratos','gnocchi','🥔','Ñoquis cocidos','g',100,150,4,31,1],['Carbohidratos','granola','🥣','Granola','g',40,180,5,28,6],
+  ['Frutas','pear','🍐','Pera','unidad',1,101,.6,27,.2],['Frutas','kiwi','🥝','Kiwi','unidad',1,42,.8,10,.4],
+  ['Vegetales','spinach','🥬','Espinaca','g',100,23,2.9,3.6,.4],['Vegetales','onion','🧅','Cebolla','g',100,40,1.1,9.3,.1],['Vegetales','pepper','🫑','Morrón','g',100,31,1,6,.3],['Vegetales','zucchini','🥒','Zucchini','g',100,17,1.2,3.1,.3],['Vegetales','mushroom','🍄','Champiñones','g',100,22,3.1,3.3,.3],
+].map(([category,id,emoji,name,unit,baseAmount,kcal,p,c,f])=>({category,id,emoji,name,unit,baseAmount,kcal,p,c,f})));
+
 export const catalogById=(catalog,id)=>catalog.find(item=>item.id===id);
 
 export const mealPresetCatalog = [
@@ -72,6 +80,15 @@ export const mealPresetCatalog = [
   {id:'ham-omelette',group:'Desayuno / Merienda',allowedSlots:['Desayuno','Merienda','Colación'],emoji:'🍳',name:'Omelette de jamón y queso',foods:[['egg',3],['ham',60],['cheese',30],['tomato',100]],steps:'Batí los huevos, cocinalos a fuego medio y rellená con jamón, queso y tomate.'},
   {id:'overnight-oats',group:'Desayuno / Merienda',allowedSlots:['Desayuno','Merienda','Colación'],emoji:'🥣',name:'Avena nocturna con manzana',foods:[['oats',50],['milk',200],['apple',1],['peanut-butter',1]],steps:'Mezclá todo en un frasco y dejalo en la heladera durante la noche.'},
 ];
+
+mealPresetCatalog.push(
+  {id:'fish-rice',group:'Almuerzo / Cena',allowedSlots:['Almuerzo','Cena'],emoji:'🐟',name:'Merluza con arroz y vegetales',foods:[['white-fish',180],['rice',180],['zucchini',120],['pepper',80]],steps:'Horneá la merluza y servila con el arroz cocido y los vegetales salteados.'},
+  {id:'shrimp-pasta',group:'Almuerzo / Cena',allowedSlots:['Almuerzo','Cena'],emoji:'🦐',name:'Pasta con camarones',foods:[['shrimp',170],['pasta',200],['tomato',120],['spinach',80]],steps:'Cociná la pasta, salteá los camarones y uní con tomate y espinaca.'},
+  {id:'beef-gnocchi',group:'Almuerzo / Cena',allowedSlots:['Almuerzo','Cena'],emoji:'🥔',name:'Ñoquis con carne magra',foods:[['gnocchi',250],['beef',150],['tomato',150],['onion',60]],steps:'Herví los ñoquis y acompañalos con una salsa rápida de carne, tomate y cebolla.'},
+  {id:'caprese-wrap',group:'Almuerzo / Cena',allowedSlots:['Almuerzo','Cena'],emoji:'🌯',name:'Wrap caprese con pollo',foods:[['tortilla',2],['chicken',130],['mozzarella',50],['tomato',120]],steps:'Calentá las tortillas y rellenalas con pollo, mozzarella y tomate.'},
+  {id:'ricotta-toast',group:'Desayuno / Merienda',allowedSlots:['Desayuno','Merienda'],emoji:'🍞',name:'Tostadas con ricota y pera',foods:[['bread',2],['ricotta',100],['pear',1]],steps:'Tostá el pan, untá la ricota y agregá la pera en láminas.'},
+  {id:'yogurt-granola',group:'Desayuno / Merienda',allowedSlots:['Desayuno','Merienda','Colación'],emoji:'🥣',name:'Yogur con granola y kiwi',foods:[['greek-yogurt',220],['granola',40],['kiwi',2]],steps:'Serví el yogur con la granola y el kiwi cortado justo antes de comer.'}
+);
 
 export const mealImageLibrary={src:'./assets/images/meal-library-v1.png',columns:4,rows:3};
 mealPresetCatalog.forEach((preset,index)=>{preset.visualIndex=index%12;preset.img=`${mealImageLibrary.src}#meal-${index%12}`;});
