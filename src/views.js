@@ -19,7 +19,7 @@ const avatarMarkup = (profile, className = 'avatar') => {
   const preset = avatarPresets.find(item => item.id === profile.avatarPreset) || avatarPresets[0];
   return profile.avatarImage ? `<div class="${className} avatar-photo"><img src="${profile.avatarImage}" alt="Foto de ${esc(profile.name)}"></div>` : `<div class="${className} avatar-character" style="--avatar-a:${preset.colors[0]};--avatar-b:${preset.colors[1]}" title="${esc(preset.name)}"><span>${preset.emoji}</span></div>`;
 };
-let timerId;
+let timerId, xpFeedbackTimer;
 const awakeningAffirmations=[
   'Estoy listo para dejar atrás la versión de mí que ya cumplió su propósito.',
   'Mis decisiones de hoy construyen la persona que voy a ser mañana.',
@@ -35,10 +35,43 @@ function mutate(update, event) {
 }
 
 function recordXp(state,{key,amount,label,type='reward',reverse=false,dateKey=state.daily?.dateKey}){
-  const result=transactXp(state.xp,state.xpLedger,{key,amount,label,type,reverse,dateKey,at:Date.now()});
+  const beforeXp=state.xp,at=Date.now();
+  const result=transactXp(beforeXp,state.xpLedger,{key,amount,label,type,reverse,dateKey,at});
   state.xp=result.xp;state.xpLedger=result.ledger;
-  if(result.delta)state.history.unshift({id:crypto.randomUUID(),at:Date.now(),type,label,detail:result.delta>0?'Experiencia obtenida':'Experiencia descontada',xp:result.delta});
+  if(result.delta){
+    state.history.unshift({id:crypto.randomUUID(),at,type,label,detail:result.delta>0?'Experiencia obtenida':'Experiencia descontada',xp:result.delta});
+    state.ui={...state.ui,xpFeedback:{id:`xp-${at}`,at,label,delta:result.delta,beforeXp,afterXp:result.xp}};
+  }
   return result.delta;
+}
+
+function xpSnapshot(xp){
+  const level=levelFromXp(xp);
+  return {...level,xp:Math.max(0,Number(xp)||0)};
+}
+
+function xpProgressMarkup(state){
+  const level=xpSnapshot(state.xp),feedback=state.ui?.xpFeedback;
+  const recent=feedback&&Date.now()-feedback.at<5200;
+  const before=recent?xpSnapshot(feedback.beforeXp):level;
+  const from=recent?(before.level===level.level?before.percent:feedback.delta>0?0:100):level.percent;
+  return `<div class="xp-level-card" data-xp-progress>
+    <div class="xp-level-heading"><b>NIVEL ${level.level}</b><span>${level.percent}% DEL NIVEL</span></div>
+    <div class="xp-level-numbers"><strong>${level.current}</strong><span>/ ${level.need} XP</span></div>
+    <div class="xp-level-meter" role="progressbar" aria-label="Experiencia del nivel ${level.level}" aria-valuemin="0" aria-valuemax="${level.need}" aria-valuenow="${level.current}"><i style="--xp-from:${from}%;--xp-to:${level.percent}%"></i></div>
+    <div class="xp-level-foot"><span>FALTAN <b>${Math.max(0,level.need-level.current)} XP</b> PARA EL NIVEL ${level.level+1}</span><span>XP TOTAL · ${level.xp}</span></div>
+  </div>`;
+}
+
+function xpFeedbackMarkup(state){
+  const feedback=state.ui?.xpFeedback;
+  if(!feedback||Date.now()-feedback.at>=5200)return'';
+  const before=xpSnapshot(feedback.beforeXp),after=xpSnapshot(feedback.afterXp),levelUp=after.level>before.level;
+  return `<aside class="xp-feedback ${feedback.delta<0?'loss':''} ${levelUp?'level-up':''}" role="status" aria-live="polite">
+    <span class="xp-feedback-icon">${feedback.delta>0?'⚡':'↘'}</span>
+    <div><small>${levelUp?`NIVEL ${after.level} ALCANZADO`:feedback.delta>0?'PROGRESO REGISTRADO':'XP DESCONTADA'}</small><strong>${feedback.delta>0?'+':''}${feedback.delta} XP</strong><p>${before.current}/${before.need} → <b>${after.current}/${after.need} XP</b></p></div>
+    <div class="xp-feedback-meter"><i style="--xp-from:${before.level===after.level?before.percent:feedback.delta>0?0:100}%;--xp-to:${after.percent}%"></i></div>
+  </aside>`;
 }
 
 const planEditable=state=>!state.plan?.locked;
@@ -49,7 +82,7 @@ function shell(content) {
   return `<div class="noise"></div>
     <header class="top"><button class="brand" data-route="general"><span class="brandmark">S</span><span>SYSTEM <b>// OWNER</b></span></button><nav>${nav.map(item => `<button class="${state.ui.route === item[0] ? 'active' : ''}" data-route="${item[0]}">${icon(item[2])}${item[1]}</button>`).join('')}</nav><div class="status"><span class="online"></span> LOCAL ACTIVE</div></header>
     <main>${content}</main>
-    <nav class="bottom">${nav.map(item => `<button class="${state.ui.route === item[0] ? 'active' : ''}" data-route="${item[0]}">${icon(item[2])}<small>${item[1]}</small></button>`).join('')}</nav><div id="modal">${dailyLayer(state)}</div>`;
+    <nav class="bottom">${nav.map(item => `<button class="${state.ui.route === item[0] ? 'active' : ''}" data-route="${item[0]}">${icon(item[2])}<small>${item[1]}</small></button>`).join('')}</nav>${xpFeedbackMarkup(state)}<div id="modal">${dailyLayer(state)}</div>`;
 }
 
 function dailyLayer(state) {
@@ -103,9 +136,9 @@ function onboarding() {
 }
 
 function hero() {
-  const state = getState(), level = levelFromXp(state.xp);
+  const state = getState();
   const symbols = ['🧠', '🗣️', '⚡', '🦾'];
-  return `<section class="hero panel">${avatarMarkup(state.profile)}<div class="identity"><p class="eyebrow">${esc(state.profile.title)}</p><h1>${esc(state.profile.name)}</h1><div class="level-line"><b>NIVEL ${level.level}</b><span>${level.current} / ${level.need} XP</span></div>${meter(level.percent)}</div><div class="hero-stats"><div>${icon('flame')}<b>${state.streak}</b><span>Racha</span></div><div>${icon('zap')}<b>+${state.history.filter(event => new Date(event.at).toDateString() === new Date().toDateString()).reduce((sum, event) => sum + (event.xp || 0), 0)}</b><span>XP hoy</span></div><div>${icon('calendar-days')}<b>${state.g30.day}</b><span>Día G30</span></div></div></section><section class="attribute-strip attribute-progress">${['Intelecto', 'Carisma', 'Rendimiento', 'Físico'].map((attribute, index) => { const skills = state.skills.filter(skill => skill.attr === attribute); const value = Math.round(skills.reduce((sum, skill) => sum + skill.score, 0) / Math.max(1, skills.length)); const strongest=[...skills].sort((a,b)=>b.score-a.score)[0]; const evidence=skills.reduce((sum,skill)=>sum+skill.evidence,0); const milestone=Math.min(100,Math.ceil((value+1)/10)*10); return `<button class="attr a${index}" data-open-attribute="${attribute}"><span class="attr-symbol">${symbols[index]}</span><div class="attr-heading"><span>${attribute}</span><small>${rank(value)}</small></div><b class="attr-score">${value}<i>/100</i></b>${meter(value, ['blue', 'violet', 'green', 'red'][index])}<div class="attr-details"><span>⭐ ${esc(strongest?.name || 'Sin medir')}</span><span>📌 ${evidence} evidencias</span><span>🎯 ${Math.max(0,milestone-value)} al hito ${milestone}</span></div><em>VER PROGRESO →</em></button>`; }).join('')}</section>`;
+  return `<section class="hero panel">${avatarMarkup(state.profile)}<div class="identity"><p class="eyebrow">${esc(state.profile.title)}</p><h1>${esc(state.profile.name)}</h1>${xpProgressMarkup(state)}</div><div class="hero-stats"><div>${icon('flame')}<b>${state.streak}</b><span>Racha</span></div><div>${icon('zap')}<b>${state.history.filter(event => new Date(event.at).toDateString() === new Date().toDateString()).reduce((sum, event) => sum + (event.xp || 0), 0)}</b><span>XP hoy</span></div><div>${icon('calendar-days')}<b>${state.g30.day}</b><span>Día G30</span></div></div></section><section class="attribute-strip attribute-progress">${['Intelecto', 'Carisma', 'Rendimiento', 'Físico'].map((attribute, index) => { const skills = state.skills.filter(skill => skill.attr === attribute); const value = Math.round(skills.reduce((sum, skill) => sum + skill.score, 0) / Math.max(1, skills.length)); const strongest=[...skills].sort((a,b)=>b.score-a.score)[0]; const evidence=skills.reduce((sum,skill)=>sum+skill.evidence,0); const milestone=Math.min(100,Math.ceil((value+1)/10)*10); return `<button class="attr a${index}" data-open-attribute="${attribute}"><span class="attr-symbol">${symbols[index]}</span><div class="attr-heading"><span>${attribute}</span><small>${rank(value)}</small></div><b class="attr-score">${value}<i>/100</i></b>${meter(value, ['blue', 'violet', 'green', 'red'][index])}<div class="attr-details"><span>⭐ ${esc(strongest?.name || 'Sin medir')}</span><span>📌 ${evidence} evidencias</span><span>🎯 ${Math.max(0,milestone-value)} al hito ${milestone}</span></div><em>VER PROGRESO →</em></button>`; }).join('')}</section>`;
 }
 
 function planOverviewMarkup(state){
@@ -369,6 +402,12 @@ function guardAssessmentSubmit(event) {
 }
 
 function bind() {
+  clearTimeout(xpFeedbackTimer);
+  const xpFeedback=getState().ui?.xpFeedback;
+  if(xpFeedback){
+    const remaining=5200-(Date.now()-xpFeedback.at);
+    if(remaining>0)xpFeedbackTimer=setTimeout(()=>mutate(state=>{if(state.ui?.xpFeedback?.id===xpFeedback.id)state.ui.xpFeedback=null;}),remaining);
+  }
   document.querySelector('#assessment')?.addEventListener('submit', guardAssessmentSubmit, true);
   decorateHabitCards();
   decoratePlanUi();
@@ -476,8 +515,8 @@ function bind() {
 
   document.querySelectorAll('[data-course]').forEach(button => button.onclick = () => { sessionStorage.setItem('course', button.dataset.course); render(); });
   document.querySelector('[data-course-back]')?.addEventListener('click', () => { sessionStorage.removeItem('course'); render(); });
-  document.querySelectorAll('[data-lesson]').forEach(button => button.onclick = () => mutate(state => { if (!state.academy.completed.includes(button.dataset.lesson)) { state.academy.completed.push(button.dataset.lesson); state.xp += 50; } }, { type: 'lesson', label: 'Lección completada', xp: 50 }));
-  document.querySelector('[data-quiz]')?.addEventListener('click', event => { const value = document.querySelector('input[name=quiz]:checked')?.value; if (value == null) return toast('Elegí una respuesta'); const score = value === '1' ? 100 : 0; mutate(state => { state.academy.quizScores[event.currentTarget.dataset.quiz] = score; if (score) state.xp += 100; }, { type: 'quiz', label: score ? 'Quiz aprobado' : 'Quiz a revisar', xp: score ? 100 : 0 }); toast(score ? 'Quiz aprobado' : 'Revisá la lección'); });
+  document.querySelectorAll('[data-lesson]').forEach(button => button.onclick = () => {let delta=0;mutate(state => { if (!state.academy.completed.includes(button.dataset.lesson)) { state.academy.completed.push(button.dataset.lesson);delta=recordXp(state,{key:`lesson-${button.dataset.lesson}`,amount:50,label:'Lección completada',type:'lesson'}); } });toast(delta?`Lección completada · +${delta} XP`:'La lección ya estaba completada');});
+  document.querySelector('[data-quiz]')?.addEventListener('click', event => { const value = document.querySelector('input[name=quiz]:checked')?.value; if (value == null) return toast('Elegí una respuesta'); const score = value === '1' ? 100 : 0,quizId=event.currentTarget.dataset.quiz;let delta=0; mutate(state => { state.academy.quizScores[quizId] = score; if (score)delta=recordXp(state,{key:`quiz-${quizId}`,amount:100,label:'Quiz aprobado',type:'quiz'}); }); toast(score ? delta?`Quiz aprobado · +${delta} XP`:'Quiz aprobado · XP ya acreditada' : 'Revisá la lección'); });
   document.querySelectorAll('[data-arena-mode]').forEach(button=>button.onclick=()=>mutate(state=>{state.arena.selectedMode=button.dataset.arenaMode;state.arena.battle=createArenaBattle(state,button.dataset.arenaMode,Math.random());}));
   document.querySelectorAll('[data-boost-game]').forEach(button=>button.onclick=()=>startBoostGame(Number(button.dataset.boostGame)));
   document.querySelectorAll('[data-use-boost]').forEach(button=>button.onclick=()=>mutate(state=>state.arena.battle.selectedBoost=state.arena.battle.selectedBoost===button.dataset.useBoost?null:button.dataset.useBoost));

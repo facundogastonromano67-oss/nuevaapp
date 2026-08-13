@@ -3,7 +3,7 @@ import { buildHabitSchedule, buildNutritionWeek, buildTrainingDay, buildTraining
 import { catalogById, exerciseCatalog, mealPresetCatalog } from './catalogs.js';
 
 const KEY = 'facu-owner-v1';
-const VERSION = 12;
+const VERSION = 13;
 const defaultAnswers = {
   sex: 'male', activity: 'light', goal: 'performance', routineType: 'full-body',
   planMode: 'normal',
@@ -68,7 +68,7 @@ export const initialState = () => {
     arena: { rating: 1000, wins: 0, losses: 0, deck: [1, 2, 3, 4, 5], skills: combatSkills, history: [], battle: null, selectedMode: null },
     history: [],
     daily: { dateKey: '', dayName: '', assignedAt: 0, welcomeSeenDate: '', noticeSeenDate: '', recalibrations: 0, hasTraining: false, trainingTitle: '' },
-    ui: { route: 'general', more: 'g30', theme: 'system' },
+    ui: { route: 'general', more: 'g30', theme: 'system', xpFeedback: null },
   };
   state.plan.habitSchedule = buildHabitSchedule(state);
   state.plan.habitScheduleStage = stageForDay(state.g30.day);
@@ -196,8 +196,10 @@ export function ensureDailyRollover(now = new Date(), force = false) {
     if(previousDateKey){
       const penalty=calculateHardcorePenalty(current,previousDateKey);
       if(penalty.total>0){
+        const beforeXp=current.xp,at=now.getTime();
         const transaction=transactXp(current.xp,current.xpLedger,{key:`hardcore-penalty-${previousDateKey}`,amount:-penalty.total,at:now.getTime(),dateKey:previousDateKey,type:'penalty',label:`Penalización Hardcore · ${previousDateKey}`});
         current.xp=transaction.xp;current.xpLedger=transaction.ledger;
+        if(transaction.delta)current.ui={...current.ui,xpFeedback:{id:`xp-${at}`,at,label:'Penalización Hardcore',delta:transaction.delta,beforeXp,afterXp:transaction.xp}};
         current.plan.penaltyHistory.unshift({...penalty,xpLost:Math.abs(transaction.delta),at:now.getTime()});
         current.history.unshift({id:`penalty-${previousDateKey}`,at:now.getTime(),type:'penalty',label:'Penalización del plan Hardcore',detail:`${penalty.items.length} incumplimientos · ${penalty.total} XP evaluados`,xp:transaction.delta});
       }
