@@ -1,5 +1,5 @@
-import { exerciseCatalog, foodCatalog, habitCatalog, catalogById, mealPresetsForSlot } from './catalogs.js?v=17';
-import { intellectAdaptiveQuestions, intellectCoreQuestions, intellectRoutes, sportCatalog } from './data.js?v=17';
+import { exerciseCatalog, foodCatalog, habitCatalog, catalogById, mealPresetsForSlot } from './catalogs.js?v=18';
+import { intellectAdaptiveQuestions, intellectCoreQuestions, intellectRoutes, sportCatalog } from './data.js?v=18';
 
 export function buildIntellectAssessment(preference = 'logic') {
   const selected = intellectRoutes[preference] ? preference : 'logic';

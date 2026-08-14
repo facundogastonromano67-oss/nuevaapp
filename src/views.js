@@ -1,8 +1,8 @@
-import { getState, setState, reset, exportBackup, importBackup } from './store.js?v=17';
-import { academy, academyConcepts, academyImageLibraries, avatarPresets, characterEvidenceQuestions, intellectMemoryStimulus, intellectRoutes, sportCatalog } from './data.js?v=17';
-import { assessmentQuestions, answersFromForm, assessmentIsComplete, validateAssessment } from './assessment.js?v=17';
-import { advanceAttributeProgress, attributeForActivity, attributeProgress, buildHabitSchedule, buildIntellectAssessment, buildNutritionWeek, buildShoppingList, buildTrainingDay, buildTrainingPlan, calculateFoodNutrition, calculateMealNutrition, calculateNutritionTargets, createArenaBattle, createDailyAssignment, createWorkoutExercise, effortProgression, exerciseRestSeconds, formatMealIngredients, generateDailyHabits, generateMissions, levelFromXp, rank, repetitionProgression, resolveArenaTurn, scoreAssessment, scoreInitialAttributes, scoreIntellectAssessment, stageForDay, transactXp, weeklySummary } from './engines.js?v=17';
-import { catalogById, exerciseCatalog, foodCatalog, groupedOptions, habitCatalog, mealPresetCatalog, mealPresetsForSlot } from './catalogs.js?v=17';
+import { getState, setState, reset, exportBackup, importBackup } from './store.js?v=18';
+import { academy, academyConcepts, academyImageLibraries, avatarPresets, characterEvidenceQuestions, intellectMemoryStimulus, intellectRoutes, sportCatalog } from './data.js?v=18';
+import { assessmentQuestions, answersFromForm, assessmentIsComplete, validateAssessment } from './assessment.js?v=18';
+import { advanceAttributeProgress, attributeForActivity, attributeProgress, buildHabitSchedule, buildIntellectAssessment, buildNutritionWeek, buildShoppingList, buildTrainingDay, buildTrainingPlan, calculateFoodNutrition, calculateMealNutrition, calculateNutritionTargets, createArenaBattle, createDailyAssignment, createWorkoutExercise, effortProgression, exerciseRestSeconds, formatMealIngredients, generateDailyHabits, generateMissions, levelFromXp, rank, repetitionProgression, resolveArenaTurn, scoreAssessment, scoreInitialAttributes, scoreIntellectAssessment, stageForDay, transactXp, weeklySummary } from './engines.js?v=18';
+import { catalogById, exerciseCatalog, foodCatalog, groupedOptions, habitCatalog, mealPresetCatalog, mealPresetsForSlot } from './catalogs.js?v=18';
 
 const app = () => document.querySelector('#app');
 const emojiIcons={
@@ -19,7 +19,9 @@ const avatarMarkup = (profile, className = 'avatar') => {
   const preset = avatarPresets.find(item => item.id === profile.avatarPreset) || avatarPresets[0];
   return profile.avatarImage ? `<div class="${className} avatar-photo"><img src="${profile.avatarImage}" alt="Foto de ${esc(profile.name)}"></div>` : `<div class="${className} avatar-character" style="--avatar-a:${preset.colors[0]};--avatar-b:${preset.colors[1]}" title="${esc(preset.name)}"><span>${preset.emoji}</span></div>`;
 };
-let timerId, xpFeedbackTimer;
+let timerId, xpFeedbackTimer, restTimerTicker;
+const restTimerSessions=new Map();
+let trainingViewMemory=null;
 const awakeningAffirmations=[
   'Estoy listo para dejar atrás la versión de mí que ya cumplió su propósito.',
   'Mis decisiones de hoy construyen la persona que voy a ser mañana.',
@@ -33,6 +35,30 @@ function mutate(update, event) {
     return state;
   });
 }
+
+function mutateQuietly(update){
+  setState(state=>{update(state);return state;},{silent:true});
+}
+
+function rememberTrainingView(control){
+  const exercise=control?.closest?.('.inline-exercise'),day=control?.closest?.('.week-day');
+  if(!exercise||!day)return;
+  trainingViewMemory={day:Number(day.dataset.weekIndex),exercise:Number(exercise.dataset.exerciseIndex),top:exercise.getBoundingClientRect().top};
+}
+
+const formatStopwatch=seconds=>`${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`;
+function restElapsed(session){return Math.max(0,Math.floor(((session.elapsedMs||0)+(session.running?Date.now()-session.startedAt:0))/1000));}
+function updateRestTimerDisplays(){
+  document.querySelectorAll('[data-rest-timer]').forEach(button=>{const session=restTimerSessions.get(button.dataset.restTimer),seconds=session?restElapsed(session):0;button.querySelector('b').textContent=formatStopwatch(seconds);button.querySelector('small').textContent=session?.running?'PAUSAR':seconds?'CONTINUAR':'INICIAR';button.classList.toggle('running',Boolean(session?.running));});
+  if(![...restTimerSessions.values()].some(session=>session.running)){clearInterval(restTimerTicker);restTimerTicker=null;}
+}
+function toggleRestTimer(key){
+  let session=restTimerSessions.get(key)||{elapsedMs:0,startedAt:0,running:false};
+  if(session.running){session.elapsedMs+=(Date.now()-session.startedAt);session.running=false;}
+  else{for(const other of restTimerSessions.values()){if(other.running){other.elapsedMs+=Date.now()-other.startedAt;other.running=false;}}session.startedAt=Date.now();session.running=true;}
+  restTimerSessions.set(key,session);if(!restTimerTicker)restTimerTicker=setInterval(updateRestTimerDisplays,250);updateRestTimerDisplays();
+}
+function resetRestTimer(key){restTimerSessions.delete(key);updateRestTimerDisplays();}
 
 function recordXp(state,{key,amount,label,type='reward',category='',attribute='',reverse=false,dateKey=state.daily?.dateKey}){
   const beforeXp=state.xp,at=Date.now();
@@ -450,6 +476,24 @@ function enhanceWeeklyOverviews() {
   foldPanel('.split-planner','🏋️ Enfoque de cada sesión','Ver tren superior e inferior');
   const trainingStrip=document.querySelector('.week-strip.training-week');
   if(trainingStrip) trainingStrip.outerHTML=`<section class="weekly-accordion training-overview" aria-label="Rutina semanal desplegable">${state.training.weeklyPlan.map((day,index)=>`<details class="week-day ${state.training.selectedDay===index?'selected':''}" ${state.training.selectedDay===index?'open':''}><summary><span>${day.enabled?(day.split==='lower'?'🦵':'🦾'):day.sport?.emoji||'🌙'}</span><div><b>${esc(day.day)}</b><small>${day.enabled?`${esc(day.title)} · ${day.exercises.length} ejercicios`:day.sport?`${esc(day.sport.name)} · ${day.sport.duration} min`:'Recuperación'}</small></div><strong>${day.enabled||day.sport?'VER DÍA':'DESCANSO'}⌄</strong></summary><div class="week-day-body">${day.sport?`<div class="day-sport-line"><span>${day.sport.emoji}</span><b>${esc(day.sport.name)}</b><small>${day.sport.duration} min · ${esc(day.sport.intensityLabel)}</small></div>`:''}${day.enabled?`<div class="exercise-roadmap">${day.exercises.map((exercise,exerciseIndex)=>`<details class="inline-exercise"><summary><span>${String(exerciseIndex+1).padStart(2,'0')}</span><div><b>${esc(exercise.name)}</b><small>${esc(exercise.target)} · ${exercise.setData.map(set=>set.reps).join(' / ')} reps · ${exercise.rest}s descanso</small></div><strong>REGISTRAR⌄</strong></summary><div class="inline-exercise-body"><p>${esc(exercise.tech)}</p><div class="set-table compact-set-table"><header><span>Serie</span><span>KG</span><span>REPS</span><span>RPE</span><span>LISTO</span></header>${exercise.setData.map((set,setIndex)=>`<div class="set ${set.done?'done':''}"><b>${setIndex+1}</b><input type="number" value="${set.kg}" data-inline-set-field="kg" data-inline-set-day="${index}" data-inline-set-exercise="${exerciseIndex}" data-inline-set-index="${setIndex}"><input type="number" value="${set.reps}" data-inline-set-field="reps" data-inline-set-day="${index}" data-inline-set-exercise="${exerciseIndex}" data-inline-set-index="${setIndex}"><input type="number" min="1" max="10" value="${set.rpe}" data-inline-set-field="rpe" data-inline-set-day="${index}" data-inline-set-exercise="${exerciseIndex}" data-inline-set-index="${setIndex}"><button class="check" data-inline-set-done data-inline-set-day="${index}" data-inline-set-exercise="${exerciseIndex}" data-inline-set-index="${setIndex}">${set.done?icon('check'):''}</button></div>`).join('')}</div><label>Notas<textarea data-inline-training-note data-inline-set-day="${index}" data-inline-set-exercise="${exerciseIndex}">${esc(exercise.notes||'')}</textarea></label><button class="ghost" data-week-training-edit="${index}">EDITAR EJERCICIOS</button></div></details>`).join('')}</div>`:`<p class="rest-copy">Día libre para recuperación o deporte. Podés convertirlo en una sesión.</p>`}<div class="week-day-actions"><button class="ghost" data-week-training-edit="${index}">EDITAR DÍA</button></div></div></details>`).join('')}</section>`;
+  const trainingOverview=document.querySelector('.training-overview');
+  if(trainingOverview){
+    [...trainingOverview.querySelectorAll(':scope>.week-day')].forEach((dayElement,dayIndex)=>{
+      dayElement.dataset.weekIndex=dayIndex;
+      if(trainingViewMemory?.day===dayIndex)dayElement.open=true;
+      [...dayElement.querySelectorAll('.inline-exercise')].forEach((exerciseElement,exerciseIndex)=>{
+        exerciseElement.dataset.exerciseIndex=exerciseIndex;
+        exerciseElement.dataset.exerciseKey=`${dayIndex}-${exerciseIndex}`;
+        if(trainingViewMemory?.day===dayIndex&&trainingViewMemory?.exercise===exerciseIndex)exerciseElement.open=true;
+        const exercise=state.training.weeklyPlan[dayIndex]?.exercises?.[exerciseIndex];
+        exerciseElement.querySelectorAll('.set').forEach((setElement,setIndex)=>{
+          const key=`${dayIndex}-${exerciseIndex}-${setIndex}`;
+          setElement.insertAdjacentHTML('afterend',`<div class="set-rest-timer"><span><small>DESCANSO RECOMENDADO</small><b>${exercise?.rest||90} segundos</b></span><button type="button" data-rest-timer="${key}" aria-label="Cronómetro de descanso de la serie ${setIndex+1}"><b>00:00</b><small>INICIAR</small></button><button type="button" class="rest-reset" data-rest-reset="${key}" aria-label="Reiniciar cronómetro">↺</button></div>`);
+        });
+      });
+    });
+    requestAnimationFrame(()=>{updateRestTimerDisplays();if(trainingViewMemory){const target=trainingOverview.querySelector(`[data-exercise-key="${trainingViewMemory.day}-${trainingViewMemory.exercise}"]`);if(target)window.scrollBy(0,target.getBoundingClientRect().top-trainingViewMemory.top);}});
+  }
   const nutritionStrip=document.querySelector('.week-strip.nutrition-week');
   if(nutritionStrip) nutritionStrip.outerHTML=`<section class="weekly-accordion nutrition-overview" aria-label="Dieta semanal desplegable">${state.nutrition.weeklyPlan.map((day,index)=>{const total=Math.round(day.meals.reduce((sum,meal)=>sum+Number(meal.kcal||0),0));return`<details class="week-day ${state.nutrition.selectedDay===index?'selected':''}" ${state.nutrition.selectedDay===index?'open':''}><summary><span>🍽️</span><div><b>${esc(day.day)}</b><small>${day.meals.length} comidas · ${total} kcal</small></div><strong>VER MENÚ⌄</strong></summary><div class="week-day-body"><div class="meal-roadmap">${day.meals.map((meal,mealIndex)=>`<details class="inline-meal"><summary><span>${esc(meal.slot)}</span><div><b>${esc(meal.name)}</b><small>${meal.kcal} kcal · ${meal.p} g proteína</small></div><strong>RECETA⌄</strong></summary><div class="inline-meal-body"><h4>Ingredientes exactos</h4><p>${esc(meal.ingredients)}</p><h4>Preparación</h4><p>${esc(meal.steps)}</p><div class="week-day-actions"><button class="ghost" data-week-meal-edit="${mealIndex}" data-meal-day="${index}">EDITAR COMIDA</button></div></div></details>`).join('')}</div><div class="week-day-actions"><button class="ghost" data-week-nutrition-edit="${index}">EDITAR DÍA COMPLETO</button></div></div></details>`;}).join('')}</section>`;
 }
@@ -547,9 +591,12 @@ function bind() {
   document.querySelectorAll('[data-training-split]').forEach(button=>button.onclick=()=>{if(!planEditable(getState()))return toast('El plan Hardcore está bloqueado');mutate(state=>{const day=state.training.weeklyPlan[Number(button.dataset.splitDay)],split=button.dataset.trainingSplit,labels={'heavy-duty':'Heavy Duty',hypertrophy:'Hipertrofia',strength:'Fuerza','full-body':'Full Body'};day.split=split;day.title=`${labels[state.training.settings.type]} · ${split==='lower'?'Tren inferior':'Tren superior'}`;day.exercises=buildTrainingDay(state.training.settings.type,split);state.training.selectedDay=Number(button.dataset.splitDay);state.training.current=0;});});
   document.querySelectorAll('[data-training-day]').forEach(button => button.onclick = () => mutate(state => { state.training.selectedDay = Number(button.dataset.trainingDay); state.training.current = 0; }));
   document.querySelectorAll('[data-exercise-jump]').forEach(button=>button.onclick=()=>{mutate(state=>{state.training.selectedDay=Number(button.dataset.exerciseDay);state.training.current=Number(button.dataset.exerciseJump);});requestAnimationFrame(()=>document.querySelector('.session-head')?.scrollIntoView({behavior:'smooth',block:'start'}));});
-  document.querySelectorAll('[data-inline-set-field]').forEach(input=>input.onchange=()=>mutate(state=>{const set=state.training.weeklyPlan[Number(input.dataset.inlineSetDay)].exercises[Number(input.dataset.inlineSetExercise)].setData[Number(input.dataset.inlineSetIndex)];set[input.dataset.inlineSetField]=Number(input.value);}));
-  document.querySelectorAll('[data-inline-set-done]').forEach(button=>button.onclick=()=>mutate(state=>{const set=state.training.weeklyPlan[Number(button.dataset.inlineSetDay)].exercises[Number(button.dataset.inlineSetExercise)].setData[Number(button.dataset.inlineSetIndex)];set.done=!set.done;}));
-  document.querySelectorAll('[data-inline-training-note]').forEach(input=>input.onchange=()=>mutate(state=>{state.training.weeklyPlan[Number(input.dataset.inlineSetDay)].exercises[Number(input.dataset.inlineSetExercise)].notes=input.value;}));
+  document.querySelectorAll('.inline-exercise').forEach(details=>details.addEventListener('toggle',()=>{if(!details.open&&trainingViewMemory&&details.dataset.exerciseKey===`${trainingViewMemory.day}-${trainingViewMemory.exercise}`)trainingViewMemory=null;}));
+  document.querySelectorAll('[data-inline-set-field]').forEach(input=>input.oninput=()=>{rememberTrainingView(input);mutateQuietly(state=>{const set=state.training.weeklyPlan[Number(input.dataset.inlineSetDay)].exercises[Number(input.dataset.inlineSetExercise)].setData[Number(input.dataset.inlineSetIndex)];set[input.dataset.inlineSetField]=Number(input.value);});});
+  document.querySelectorAll('[data-inline-set-done]').forEach(button=>button.onclick=()=>{rememberTrainingView(button);mutate(state=>{const set=state.training.weeklyPlan[Number(button.dataset.inlineSetDay)].exercises[Number(button.dataset.inlineSetExercise)].setData[Number(button.dataset.inlineSetIndex)];set.done=!set.done;});});
+  document.querySelectorAll('[data-inline-training-note]').forEach(input=>input.oninput=()=>{rememberTrainingView(input);mutateQuietly(state=>{state.training.weeklyPlan[Number(input.dataset.inlineSetDay)].exercises[Number(input.dataset.inlineSetExercise)].notes=input.value;});});
+  document.querySelectorAll('[data-rest-timer]').forEach(button=>button.onclick=()=>toggleRestTimer(button.dataset.restTimer));
+  document.querySelectorAll('[data-rest-reset]').forEach(button=>button.onclick=()=>resetRestTimer(button.dataset.restReset));
   document.querySelectorAll('[data-week-training-edit]').forEach(button=>button.onclick=()=>{if(!planEditable(getState()))return toast('El plan Hardcore está bloqueado');routineDayModal(Number(button.dataset.weekTrainingEdit));});
   document.querySelector('[data-sport-done]')?.addEventListener('click',()=>{const index=Number(document.querySelector('[data-sport-done]').dataset.sportDone),state=getState(),day=state.training.weeklyPlan[index];if(state.training.sportHistory.some(entry=>entry.dateKey===state.daily.dateKey&&entry.day===day.day))return toast('El deporte ya está registrado');let delta=0,pendingGym=false;mutate(current=>{current.training.sportHistory.unshift({at:Date.now(),dateKey:current.daily.dateKey,day:day.day,sport:day.sport.name,duration:day.sport.duration,intensity:day.sport.intensity});const gymDone=!day.enabled||current.training.history.some(entry=>entry.dateKey===current.daily.dateKey&&entry.day===day.day);pendingGym=day.day===current.daily.dayName&&!gymDone;const habit=current.habits.find(item=>item.catalogId==='daily-training');if(habit&&gymDone)habit.done=true;if(day.day===current.daily.dayName&&gymDone)delta=recordXp(current,{key:`training-${current.daily.dateKey}-${day.day}`,amount:current.plan?.rewards?.training||180,label:`Actividad completa: ${day.title}`,type:'training'});});toast(delta?`Actividad completa · +${delta} XP`:pendingGym?'Deporte guardado · falta completar el gimnasio':'Deporte registrado');});
   document.querySelector('[data-edit-routine-day]')?.addEventListener('click', ()=>routineDayModal());

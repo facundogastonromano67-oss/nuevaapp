@@ -1,9 +1,9 @@
-import { attributes, combatSkills } from './data.js?v=17';
-import { attributeProgress, buildHabitSchedule, buildNutritionWeek, buildTrainingDay, buildTrainingPlan, calculateHardcorePenalty, calculateNutritionTargets, createDailyAssignment, effortProgression, generateDailyHabits, localDateKey, repetitionProgression, stageForDay, transactXp } from './engines.js?v=17';
-import { catalogById, exerciseCatalog, mealPresetCatalog } from './catalogs.js?v=17';
+import { attributes, combatSkills } from './data.js?v=18';
+import { attributeProgress, buildHabitSchedule, buildNutritionWeek, buildTrainingDay, buildTrainingPlan, calculateHardcorePenalty, calculateNutritionTargets, createDailyAssignment, effortProgression, generateDailyHabits, localDateKey, repetitionProgression, stageForDay, transactXp } from './engines.js?v=18';
+import { catalogById, exerciseCatalog, mealPresetCatalog } from './catalogs.js?v=18';
 
 const KEY = 'facu-owner-v1';
-const VERSION = 17;
+const VERSION = 18;
 const defaultAnswers = {
   sex: 'male', activity: 'light', goal: 'performance', routineType: 'full-body',
   planMode: 'normal',
@@ -195,7 +195,7 @@ let state;
 try { state = migrateState(JSON.parse(localStorage.getItem(KEY))); } catch { state = initialState(); }
 
 export const getState = () => state;
-export function setState(update) {
+export function setState(update, options = {}) {
   state = update(structuredClone(state)) || state;
   const routineType=state.training?.settings?.type||'full-body';
   state.training?.weeklyPlan?.forEach(day=>day.exercises?.forEach(exercise=>{
@@ -208,7 +208,7 @@ export function setState(update) {
     exercise.sets=sets.length||exercise.sets;
   }));
   localStorage.setItem(KEY, JSON.stringify(state));
-  window.dispatchEvent(new Event('statechange'));
+  if (!options.silent) window.dispatchEvent(new Event('statechange'));
 }
 export function ensureDailyRollover(now = new Date(), force = false) {
   const today = localDateKey(now);
